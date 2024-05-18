@@ -40,6 +40,12 @@
 
 The py-alpaca-daily-losers project integrates Alpaca Markets for a daily losers strategy, offering market data extraction, AI analysis, and Slack notifications. The core functionality centers on retrieving and analyzing daily stock market data using indicators like Bollinger Bands and RSI. It provides insights through news extraction, sentiment analysis, and chat functions via OpenAI integration. This project equips users with robust data analysis tools for informed decision-making in the stock market.
 
+This project is in no way trading advice, or a vaild strategy. Any trading done using this package should only be on a paper account, until proven to work.
+
+Visit [PyAlpacaApi](https://github.com/TexasCoding/py-alpaca-api) to learn more about the core of this project.
+
+Visit [AlpacaApiStrategies](https://github.com/TexasCoding/alpaca-api-strategies) for an example app using this strategy.
+
 ---
 
 ##  Features
