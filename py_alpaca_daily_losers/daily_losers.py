@@ -2,10 +2,10 @@ import os
 import pandas as pd
 from py_alpaca_api.alpaca import PyAlpacaApi
 
-from src.marketaux import MarketAux
-from src.article_extractor import ArticleExtractor
-from src.openai import OpenAIAPI
-from src.global_fuctions import *
+from .src.marketaux import MarketAux
+from .src.article_extractor import ArticleExtractor
+from .src.openai import OpenAIAPI
+from .src.global_fuctions import *
 
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
