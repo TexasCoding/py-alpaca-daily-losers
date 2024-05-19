@@ -30,4 +30,4 @@ class MarketAux:
                 return_data.append(link["url"]) if link["url"] != "" else None
             return return_data
         else:
-            return []
+            raise Exception(f"Error fetching data from MarketAux API: {response.text}")

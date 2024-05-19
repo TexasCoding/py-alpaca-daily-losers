@@ -73,7 +73,9 @@ class DailyLosers:
                     "qty"
                 ].values[0]
                 if self.alpaca.market.clock().is_open:
-                    self.alpaca.order.market(symbol=symbol, qty=qty, side="sell")
+                    self.alpaca.order.market(
+                        symbol=symbol, qty=qty, side="sell"
+                    )
             # If there is an error, print or send a slack message
             except Exception as e:
                 send_message(f"Error selling {symbol}: {e}")
@@ -88,8 +90,12 @@ class DailyLosers:
             sold_message = "No positions to sell"
         else:
             # If positions were sold, create the message
-            sold_message = "Successfully{} sold the following positions:\n".format(
-                " pretend" if not self.alpaca.market.clock().is_open else ""
+            sold_message = (
+                "Successfully{} sold the following positions:\n".format(
+                    " pretend"
+                    if not self.alpaca.market.clock().is_open
+                    else ""
+                )
             )
             for position in sold_positions:
                 sold_message += "{qty} shares of {symbol}\n".format(
@@ -101,7 +107,7 @@ class DailyLosers:
     ########################################################
     # Define the get_sell_opportunities function
     ########################################################
-    def get_sell_opportunities(self):
+    def get_sell_opportunities(self) -> list:
         """
         Get the sell assets opportunities based on the RSI and Bollinger Bands
         return: List of sell opportunities
@@ -118,9 +124,13 @@ class DailyLosers:
         assets_history = self.get_ticker_data(current_positions_symbols)
         # Get the sell criteria
         sell_criteria = (
-            (assets_history[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70).any(axis=1)
+            (assets_history[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70).any(
+                axis=1
+            )
         ) | (
-            (assets_history[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]] == 1).any(axis=1)
+            (
+                assets_history[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]] == 1
+            ).any(axis=1)
         )
         # Get the filtered positions based on the sell criteria
         sell_filtered_df = assets_history[sell_criteria]
@@ -137,7 +147,9 @@ class DailyLosers:
         return: True if the function is successful
         return: False if the market is closed or there are no stocks to sell
         """
-        print("Liquidating positions for capital to make cash 10% of the portfolio")
+        print(
+            "Liquidating positions for capital to make cash 10% of the portfolio"
+        )
         # Get the current positions from the Alpaca API
         current_positions = self.alpaca.position.get_all()
         if current_positions.empty:
@@ -159,7 +171,9 @@ class DailyLosers:
                 current_positions["symbol"] != "Cash"
             ].sort_values(by="profit_pct", ascending=False)
             # Sell the top 25% of performing stocks evenly to make cash 10% of total portfolio
-            top_performers = current_positions.iloc[: int(len(current_positions) // 2)]
+            top_performers = current_positions.iloc[
+                : int(len(current_positions) // 2)
+            ]
             top_performers_market_value = top_performers["market_value"].sum()
             cash_needed = total_holdings * 0.1 - cash_row["market_value"][0]
 
@@ -171,7 +185,8 @@ class DailyLosers:
                 # Calculate the quantity to sell from the top performers
                 # amount_to_sell = float((row['market_value'] / top_performers_market_value) * cash_needed)
                 amount_to_sell = int(
-                    (row["market_value"] / top_performers_market_value) * cash_needed
+                    (row["market_value"] / top_performers_market_value)
+                    * cash_needed
                 )
                 # If the amount to sell is 0, continue to the next stock
                 if amount_to_sell == 0:
@@ -182,7 +197,9 @@ class DailyLosers:
                     # Market sell the stock if the market is open
                     if self.alpaca.market.clock().is_open:
                         self.alpaca.order.market(
-                            symbol=row["symbol"], notional=amount_to_sell, side="sell"
+                            symbol=row["symbol"],
+                            notional=amount_to_sell,
+                            side="sell",
                         )
                 # If there is an error, print or send a slack message
                 except Exception as e:
@@ -191,7 +208,10 @@ class DailyLosers:
                 # If the order was successful, append the sold position to the sold_positions list
                 else:
                     sold_positions.append(
-                        {"symbol": row["symbol"], "notional": round(amount_to_sell, 2)}
+                        {
+                            "symbol": row["symbol"],
+                            "notional": round(amount_to_sell, 2),
+                        }
                     )
         # Print or send slack messages of the sold positions
         if not sold_positions:
@@ -202,7 +222,9 @@ class DailyLosers:
             # Pretend trades if the market is closed
             sold_message = (
                 "Successfully{} liquidated the following positions:\n".format(
-                    " pretend" if not self.alpaca.market.clock().is_open else ""
+                    " pretend"
+                    if not self.alpaca.market.clock().is_open
+                    else ""
                 )
             )
             for position in sold_positions:
@@ -219,13 +241,13 @@ class DailyLosers:
         losers = self.get_daily_losers()
         ticker_data = self.get_ticker_data(losers)
         filter_tickers = self.buy_criteria(ticker_data)
-        news_filtered_tickers = self.filter_tickers_with_news(filter_tickers)
-        self.open_posistions(news_filtered_tickers)
+        self.filter_tickers_with_news(filter_tickers)
+        self.open_posistions()
 
     ########################################################
     # Define the open_posistions function
     ########################################################
-    def open_posistions(self, limit: int = 8):
+    def open_posistions(self, ticker_limit=8):
         """
         Buy the stocks based on the buy opportunities, limit to 8 stocks by default
         Should only be run at market open
@@ -235,19 +257,22 @@ class DailyLosers:
             "Buying orders based on buy opportunities and openai sentiment. Limit to 8 stocks by default"
         )
         # Get the tickers from the get_ticker_info function and convert symbols to a list
-        tickers = self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        tickers = self.alpaca.watchlist.get_assets(
+            watchlist_name="DailyLosers"
+        )
+
         # Get the available cash from the Alpaca API
         available_cash = self.alpaca.account.get().cash
-        ticker_count = len(tickers)
+
         # This is the amount to buy for each stock
-        if ticker_count == 0:
+        if len(tickers) == 0:
             notional = 0
         else:
-            notional = (available_cash / ticker_count) - 1
+            notional = (available_cash / len(tickers[:ticker_limit])) - 1
 
         bought_positions = []
         # Iterate through the tickers and buy the stocks
-        for ticker in tickers[:ticker_count]:
+        for ticker in tickers[:ticker_limit]:
             # Market buy the stock
             try:
                 if self.alpaca.market.clock().is_open:
@@ -267,8 +292,12 @@ class DailyLosers:
             bought_message = "No positions bought"
         else:
             # If positions were bought, create the message
-            bought_message = "Successfully{} bought the following positions:\n".format(
-                " pretend" if not self.alpaca.market.clock().is_open else ""
+            bought_message = (
+                "Successfully{} bought the following positions:\n".format(
+                    " pretend"
+                    if not self.alpaca.market.clock().is_open
+                    else ""
+                )
             )
             for position in bought_positions:
                 bought_message += "${qty} of {symbol}\n".format(
@@ -280,7 +309,7 @@ class DailyLosers:
     ########################################################
     # Define the filter_tickers_with_news function
     ########################################################
-    def filter_tickers_with_news(self, tickers) -> list[str]:
+    def filter_tickers_with_news(self, tickers) -> list:
         news = MarketAux()
         article = ArticleExtractor()
         openai = OpenAIAPI()
@@ -298,35 +327,42 @@ class DailyLosers:
                 bearish = 0
                 for art in articles:
                     sentiment = openai.get_sentiment_analysis(
-                        title=art["title"], symbol=ticker, article=art["content"]
+                        title=art["title"],
+                        symbol=ticker,
+                        article=art["content"],
                     )
                     if sentiment == "BULLISH":
                         bullish += 1
                     else:
                         bearish += 1
-            if bullish > bearish:
-                filtered_tickers.append(ticker)
+
+                if bullish > bearish:
+                    filtered_tickers.append(ticker)
 
         if len(filtered_tickers) == 0:
             print("No tickers with news found")
+            return []
 
         try:
             self.alpaca.watchlist.update(
-                watchlist_name="DailyLosers", symbols=",".join(filtered_tickers)
+                watchlist_name="DailyLosers",
+                symbols=",".join(filtered_tickers),
             )
         except Exception:
             self.alpaca.watchlist.create(
                 name="DailyLosers", symbols=",".join(filtered_tickers)
             )
 
-        tickers = self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        tickers = self.alpaca.watchlist.get_assets(
+            watchlist_name="DailyLosers"
+        )
 
         return tickers
 
     ########################################################
     # Define the get_daily_losers function
     ########################################################
-    def get_daily_losers(self) -> list[str]:
+    def get_daily_losers(self) -> list:
         losers = self.alpaca.screener.losers()["symbol"].to_list()
         try:
             watchlist = self.alpaca.watchlist.get(watchlist_name="DailyLosers")
@@ -347,7 +383,7 @@ class DailyLosers:
     ########################################################
     # Define the buy_criteria function
     ########################################################
-    def buy_criteria(self, data) -> list[str]:
+    def buy_criteria(self, data) -> list:
         """
         Get the buy criteria for the stock
         :param data: DataFrame: stock data
@@ -362,6 +398,10 @@ class DailyLosers:
 
         filtered_data = list(buy_filtered_data["symbol"])
 
+        if len(filtered_data) == 0:
+            print("No tickers meet the buy criteria")
+            return []
+
         try:
             self.alpaca.watchlist.update(
                 watchlist_name="DailyLosers", symbols=",".join(filtered_data)
@@ -371,7 +411,9 @@ class DailyLosers:
                 name="DailyLosers", symbols=",".join(filtered_data)
             )
 
-        tickers = self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        tickers = self.alpaca.watchlist.get_assets(
+            watchlist_name="DailyLosers"
+        )
         # Return the list of tickers that meet the buy criteria
         return tickers
 
