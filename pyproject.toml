@@ -13,7 +13,7 @@ openai = "^1.30.1"
 slack-sdk = "^3.27.2"
 ta = "^0.11.0"
 <<<<<<< HEAD
-py-alpaca-api = "^0.5.0"
+py-alpaca-api = "^0.5.1"
 =======
 >>>>>>> be33ad10b20d1f267a2ad423af88269650717aee
 tqdm = "^4.66.4"
