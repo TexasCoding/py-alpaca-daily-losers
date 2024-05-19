@@ -34,9 +34,13 @@ class ArticleExtractor:
                         {
                             "title": res_dict["title"],
                             "content": self.truncate(
-                                "".join(res_dict["text"].split()), 10000
+                                "".join(res_dict["text"]), 10000
                             ),
                         }
                     )
+            else:
+                raise Exception(
+                    f"Error fetching data from ArticleExtractor API: {response.text}"
+                )
 
         return return_data
