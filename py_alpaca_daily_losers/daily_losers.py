@@ -73,9 +73,7 @@ class DailyLosers:
                     "qty"
                 ].values[0]
                 if self.alpaca.market.clock().is_open:
-                    self.alpaca.order.market(
-                        symbol=symbol, qty=qty, side="sell"
-                    )
+                    self.alpaca.position.close(symbol=symbol, percentage=100)
             # If there is an error, print or send a slack message
             except Exception as e:
                 send_message(f"Error selling {symbol}: {e}")
@@ -132,10 +130,21 @@ class DailyLosers:
                 assets_history[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]] == 1
             ).any(axis=1)
         )
+
         # Get the filtered positions based on the sell criteria
         sell_filtered_df = assets_history[sell_criteria]
+        sell_list = sell_filtered_df["symbol"].tolist()
+
+        percentage_change_list = current_positions[
+            current_positions["profit_pct"] > 0.1
+        ]["symbol"].tolist()
+
+        for symbol in percentage_change_list:
+            if symbol not in sell_list:
+                sell_list.append(symbol)
+
         # Get the symbol list from the filtered positions
-        return sell_filtered_df["symbol"].tolist()
+        return sell_list
 
     ########################################################
     # Define the liquidate_positions_for_capital function
