@@ -119,7 +119,9 @@ class DailyLosers:
                     "qty"
                 ].values[0]
                 if self.alpaca.market.clock().is_open:
-                    self.alpaca.position.close(symbol=symbol, percentage=100)
+                    self.alpaca.position.close(
+                        symbol_or_id=symbol, percentage=100
+                    )
             # If there is an error, print or send a Slack message
             except Exception as e:
                 send_message(f"Error selling {symbol}: {e}")
