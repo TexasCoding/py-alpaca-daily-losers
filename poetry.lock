@@ -289,6 +289,37 @@ files = [
 ]
 
 [[package]]
+name = "inflect"
+version = "7.2.1"
+description = "Correctly generate plurals, singular nouns, ordinals, indefinite articles"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "inflect-7.2.1-py3-none-any.whl", hash = "sha256:f4ecaffaeccbc746251d973c0674c47d63b262fdad63f651fb98e878eee1f449"},
+    {file = "inflect-7.2.1.tar.gz", hash = "sha256:a7ce5e23d6798734f256c1ad9ed52186b8ec276f10b18ce3d3ecb19c21eb6cb6"},
+]
+
+[package.dependencies]
+more-itertools = "*"
+typeguard = ">=4.0.1"
+typing-extensions = "*"
+
+[package.extras]
+docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+testing = ["pygments", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
+
+[[package]]
+name = "more-itertools"
+version = "10.2.0"
+description = "More routines for operating on iterables, beyond itertools"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "more-itertools-10.2.0.tar.gz", hash = "sha256:8fccb480c43d3e99a00087634c06dd02b0d50fbf088b380de5a41a015ec239e1"},
+    {file = "more_itertools-10.2.0-py3-none-any.whl", hash = "sha256:686b06abe565edfab151cb8fd385a05651e1fdf8f0a14191e4439283421f8684"},
+]
+
+[[package]]
 name = "mypy-extensions"
 version = "1.0.0"
 description = "Type system extensions for programs checked with the mypy type checker."
@@ -831,6 +862,24 @@ slack = ["slack-sdk"]
 telegram = ["requests"]
 
 [[package]]
+name = "typeguard"
+version = "4.2.1"
+description = "Run-time type checker for Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "typeguard-4.2.1-py3-none-any.whl", hash = "sha256:7da3bd46e61f03e0852f8d251dcbdc2a336aa495d7daff01e092b55327796eb8"},
+    {file = "typeguard-4.2.1.tar.gz", hash = "sha256:c556a1b95948230510070ca53fa0341fb0964611bd05d598d87fb52115d65fee"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.10.0", markers = "python_version < \"3.13\""}
+
+[package.extras]
+doc = ["Sphinx (>=7)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)"]
+test = ["coverage[toml] (>=7)", "mypy (>=1.2.0)", "pytest (>=7)"]
+
+[[package]]
 name = "typing-extensions"
 version = "4.11.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -872,4 +921,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "b719f72e8732fda3f3a167e16bce129d818ad6e07f187ca1548460550cd1db45"
+content-hash = "52dffb9e288ab2da486bae1ed1e841dd2eed645ab318cf1ad88f3a112d2f308e"

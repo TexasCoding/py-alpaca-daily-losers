@@ -10,6 +10,8 @@ from .src.global_fuctions import send_message
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
 
+import inflect
+
 from tqdm import tqdm
 from dotenv import load_dotenv
 from datetime import datetime
@@ -29,11 +31,13 @@ api_key = str(os.getenv("API_KEY"))
 api_secret = str(os.getenv("API_SECRET"))
 api_paper = True if os.getenv("API_PAPER") == "True" else False
 
+infl = inflect.engine()
+
 
 class DailyLosers:
     def __init__(self):
         self.alpaca = PyAlpacaApi(
-            api_key=api_key, api_secret=api_secret, api_paper=api_paper
+            api_key=api_key, api_secret=api_secret, api_paper=True
         )
         self.production = True if os.getenv("PRODUCTION") == "True" else False
 
@@ -83,24 +87,7 @@ class DailyLosers:
                 sold_positions.append({"symbol": symbol, "qty": qty})
 
         # Print or send slack messages of the sold positions
-        if not sold_positions:
-            # If no positions were sold, create the message
-            sold_message = "No positions to sell"
-        else:
-            # If positions were sold, create the message
-            sold_message = (
-                "Successfully{} sold the following positions:\n".format(
-                    " pretend"
-                    if not self.alpaca.market.clock().is_open
-                    else ""
-                )
-            )
-            for position in sold_positions:
-                sold_message += "{qty} shares of {symbol}\n".format(
-                    qty=position["qty"], symbol=position["symbol"]
-                )
-        # Print or send the message
-        send_message(sold_message)
+        self._send_position_messages(sold_positions, "sell")
 
     ########################################################
     # Define the get_sell_opportunities function
@@ -184,7 +171,9 @@ class DailyLosers:
                 : int(len(current_positions) // 2)
             ]
             top_performers_market_value = top_performers["market_value"].sum()
-            cash_needed = total_holdings * 0.1 - cash_row["market_value"][0]
+            cash_needed = (
+                total_holdings * 0.1 - cash_row["market_value"][0]
+            ) + 5.00
 
             # Sell the top performers to make cash 10% of the portfolio
             for index, row in top_performers.iterrows():
@@ -223,25 +212,7 @@ class DailyLosers:
                         }
                     )
         # Print or send slack messages of the sold positions
-        if not sold_positions:
-            # If no positions were sold, create the message
-            sold_message = "No positions liquidated for capital"
-        else:
-            # If positions were sold, create the message
-            # Pretend trades if the market is closed
-            sold_message = (
-                "Successfully{} liquidated the following positions:\n".format(
-                    " pretend"
-                    if not self.alpaca.market.clock().is_open
-                    else ""
-                )
-            )
-            for position in sold_positions:
-                sold_message += "Sold ${qty} of {symbol}\n".format(
-                    qty=position["notional"], symbol=position["symbol"]
-                )
-        # Print or send the message
-        send_message(sold_message)
+        self._send_position_messages(sold_positions, "liquidate")
 
     ########################################################
     # Define the check_for_buy_opportunities function
@@ -296,24 +267,7 @@ class DailyLosers:
                     {"symbol": ticker, "notional": round(notional, 2)}
                 )
         # Print or send slack messages of the bought positions
-        if not bought_positions:
-            # If no positions were bought, create the message
-            bought_message = "No positions bought"
-        else:
-            # If positions were bought, create the message
-            bought_message = (
-                "Successfully{} bought the following positions:\n".format(
-                    " pretend"
-                    if not self.alpaca.market.clock().is_open
-                    else ""
-                )
-            )
-            for position in bought_positions:
-                bought_message += "${qty} of {symbol}\n".format(
-                    qty=position["notional"], symbol=position["symbol"]
-                )
-        # Print or send the message
-        send_message(bought_message)
+        self._send_position_messages(bought_positions, "buy")
 
     ########################################################
     # Define the filter_tickers_with_news function
@@ -482,3 +436,62 @@ class DailyLosers:
             df_tech = pd.DataFrame()
         # Return the DataFrame
         return df_tech
+
+    ########################################################
+    # Define the _send_position_messages function
+    ########################################################
+    def _send_position_messages(self, positions: list, type: str):
+        """
+        Sends messages about the positions based on the given type.
+
+        Args:
+            positions (list): A list of positions to send messages about.
+            type (str): The type of action performed on the positions. Can be "sell", "buy", or "liquidate".
+
+        Returns:
+            None
+        """
+
+        if type == "sell":
+            position_name = "sold"
+        elif type == "buy":
+            position_name = "bought"
+        elif type == "liquidate":
+            position_name = "liquidated"
+        else:
+            raise ValueError(
+                'Invalid type. Must be "sell", "buy", or "liquidate".'
+            )
+
+        # Print or send slack messages of the sold positions
+        if not positions:
+            # If no positions were sold, create the message
+            position_message = "No positions to {}".format(type)
+        else:
+            # If positions were sold, create the message
+            position_message = (
+                "Successfully{} {} the following positions:\n".format(
+                    (
+                        " pretend"
+                        if not self.alpaca.market.clock().is_open
+                        else ""
+                    ),
+                    position_name,
+                )
+            )
+            for position in positions:
+                if position_name == "liquidated":
+                    position_message += "{qty} shares of {symbol}\n".format(
+                        qty=position["qty"], symbol=position["symbol"]
+                    )
+
+                elif position_name == "sold":
+                    position_message += "{qty} shares of {symbol}\n".format(
+                        qty=position["qty"], symbol=position["symbol"]
+                    )
+                else:
+                    position_message += "${qty} of {symbol}\n".format(
+                        qty=position["notional"], symbol=position["symbol"]
+                    )
+        # Print or send the message
+        return send_message(position_message)
