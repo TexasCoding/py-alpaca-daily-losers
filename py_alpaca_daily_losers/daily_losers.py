@@ -152,7 +152,7 @@ class DailyLosers:
         The sell criteria are then defined. It checks if any of the RSI values (14, 30, 50, 200) are greater than or
         equal to 70, or if any of the Bollinger Bands HI values (14, 30, 50, 200) are equal to 1.
 
-        The positions that meet the sell criteria are filtered using the assets history.
+        The positions that meet the sell criteria are filtered using the asset's history.
 
         A list of symbols is created from the filtered positions.
 
