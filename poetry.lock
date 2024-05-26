@@ -575,13 +575,13 @@ type = ["mypy (>=1.8)"]
 
 [[package]]
 name = "py-alpaca-api"
-version = "0.5.6"
+version = "0.5.8"
 description = "Python package, for communicating with Alpaca Markets REST API."
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "py_alpaca_api-0.5.6-py3-none-any.whl", hash = "sha256:89a3f9caadbcb8cde546e6b89430d08a40392c0b07019b50cda9184ff6fd365f"},
-    {file = "py_alpaca_api-0.5.6.tar.gz", hash = "sha256:d712013f4cb8a6dfc7344c56f43a64ba9471f80a8ec440fbc6888551267176df"},
+    {file = "py_alpaca_api-0.5.8-py3-none-any.whl", hash = "sha256:3c6d93896660d60e090915405be97f226e8f103d989250b5a0e8d691e09b62c7"},
+    {file = "py_alpaca_api-0.5.8.tar.gz", hash = "sha256:67eadb20ad93c371bae9c6264302d5e81d57982bb2071032495a2115a7b24a15"},
 ]
 
 [package.dependencies]
@@ -872,4 +872,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "b719f72e8732fda3f3a167e16bce129d818ad6e07f187ca1548460550cd1db45"
+content-hash = "f5d728a3daf8ed168700071b516dbc1dbb93e12bad2034ad041f84426701e741"
