@@ -635,7 +635,7 @@ class DailyLosers:
             for position in positions:
                 if position_name == "liquidated":
                     position_message += "{qty} shares of {symbol}\n".format(
-                        qty=position["qty"], symbol=position["symbol"]
+                        qty=position["notional"], symbol=position["symbol"]
                     )
 
                 elif position_name == "sold":
