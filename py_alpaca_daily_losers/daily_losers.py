@@ -5,6 +5,7 @@ from py_alpaca_api.alpaca import PyAlpacaApi
 from .src.marketaux import MarketAux
 from .src.article_extractor import ArticleExtractor
 from .src.openai import OpenAIAPI
+from .src.yahoo import Yahoo
 from .src.global_fuctions import send_message
 
 from ta.volatility import BollingerBands
@@ -152,7 +153,7 @@ class DailyLosers:
         The sell criteria are then defined. It checks if any of the RSI values (14, 30, 50, 200) are greater than or
         equal to 70, or if any of the Bollinger Bands HI values (14, 30, 50, 200) are equal to 1.
 
-        The positions that meet the sell criteria are filtered using the assets history.
+        The positions that meet the sell criteria are filtered using the asset's history.
 
         A list of symbols is created from the filtered positions.
 
@@ -313,10 +314,13 @@ class DailyLosers:
 
         """
         losers = self.get_daily_losers()
-        ticker_data = self.get_ticker_data(losers)
-        filter_tickers = self.buy_criteria(ticker_data)
-        self.filter_tickers_with_news(filter_tickers)
-        self.open_positions()
+        buy_opportunities = self.filter_tickers_with_news(losers)
+        
+        if len(buy_opportunities) > 0:
+            print(f"{len(buy_opportunities)} buy opportunities found. Opening positions...")
+            self.open_positions()
+        else:
+            print("No buy opportunities found")
 
     ########################################################
     # Define the open_positions function
@@ -463,27 +467,39 @@ class DailyLosers:
 
         Note: Make sure you have the necessary credentials and modules imported before using this method.
         """
-        losers = self.alpaca.screener.losers()["symbol"].to_list()
+        filtered_losers = []
+        yahoo = Yahoo()
+        losers = self.alpaca.screener.losers(total_losers_returned=130)[
+            "symbol"
+        ].to_list()
+
+        losers = self.get_ticker_data(losers)
+        losers = self.buy_criteria(losers)
+
+        for i, ticker in tqdm(
+            enumerate(losers),
+            desc=f"• Getting recommendations for {len(losers)} tickers, from Yahoo Finance: ",
+        ):
+            sentiment = yahoo.get_sentiment(ticker)
+            if sentiment == "NEUTRAL" or sentiment == "BEARISH":
+                losers.remove(ticker)
         try:
-            watchlist = self.alpaca.watchlist.get(watchlist_name="DailyLosers")
-        except ValueError:
+            self.alpaca.watchlist.get(watchlist_name="DailyLosers")
+        except Exception:
             self.alpaca.watchlist.create(
                 name="DailyLosers", symbols=",".join(losers)
             )
         else:
-            if watchlist.updated_at.strftime("%Y-%m-%d") != today:
-                self.alpaca.watchlist.update(
-                    watchlist_name="DailyLosers", symbols=",".join(losers)
-                )
-            else:
-                print(f"Watchlist already updated today: {today}")
+            self.alpaca.watchlist.update(
+                watchlist_name="DailyLosers", symbols=",".join(losers)
+            )
 
         return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
 
     ########################################################
     # Define the buy_criteria function
     ########################################################
-    def buy_criteria(self, data) -> list:
+    def buy_criteria(self, data: pd.DataFrame) -> list:
         """
         Filter the DataFrame based on the buy criteria and update the DailyLosers watchlist.
 
@@ -515,7 +531,7 @@ class DailyLosers:
             self.alpaca.watchlist.update(
                 watchlist_name="DailyLosers", symbols=",".join(filtered_data)
             )
-        except ValueError:
+        except Exception:
             self.alpaca.watchlist.create(
                 name="DailyLosers", symbols=",".join(filtered_data)
             )
