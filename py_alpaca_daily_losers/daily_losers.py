@@ -82,6 +82,9 @@ class DailyLosers:
         print("Selling positions based on sell criteria")
 
         sell_opportunities = self.get_sell_opportunities()
+        if sell_opportunities == []:
+            send_message("No sell opportunities found.")
+            return
 
         current_positions = self.alpaca.position.get_all()
         sold_positions = []
@@ -152,8 +155,7 @@ class DailyLosers:
 
         current_positions = self.alpaca.position.get_all()
         if current_positions[current_positions["symbol"] != "Cash"].empty:
-            sold_message = "No positions available to liquidate for capital"
-            send_message(sold_message)
+            send_message("No positions available to liquidate for capital")
             return
 
         cash_row = current_positions[current_positions["symbol"] == "Cash"]
@@ -247,7 +249,8 @@ class DailyLosers:
         available_cash = self.alpaca.account.get().cash
 
         if len(tickers) == 0:
-            notional = 0
+            send_message("No tickers to buy.")
+            return
         else:
             notional = (available_cash / len(tickers[:ticker_limit])) - 1
 
@@ -365,6 +368,10 @@ class DailyLosers:
 
         losers = self.get_ticker_data(losers)
         losers = self.buy_criteria(losers)
+
+        if len(losers) == 0:
+            send_message("No daily losers found.")
+            return []
 
         for i, ticker in tqdm(
                 enumerate(losers),
