@@ -13,13 +13,13 @@ files = [
 
 [[package]]
 name = "anyio"
-version = "4.3.0"
+version = "4.4.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "anyio-4.3.0-py3-none-any.whl", hash = "sha256:048e05d0f6caeed70d731f3db756d35dcc1f35747c8c403364a8332c630441b8"},
-    {file = "anyio-4.3.0.tar.gz", hash = "sha256:f75253795a87df48568485fd18cdd2a3fa5c4f7c5be8e5e36637733fce06fed6"},
+    {file = "anyio-4.4.0-py3-none-any.whl", hash = "sha256:c1b2d8f46a8a812513012e1107cb0e68c17159a7a594208005a57dc776e1bdc7"},
+    {file = "anyio-4.4.0.tar.gz", hash = "sha256:5aadc6a1bbb7cdb0bede386cac5e2940f5e2ff3aa20277e991cf028e0585ce94"},
 ]
 
 [package.dependencies]
@@ -838,13 +838,13 @@ type = ["mypy (>=1.8)"]
 
 [[package]]
 name = "py-alpaca-api"
-version = "0.5.9"
+version = "0.6.0"
 description = "Python package, for communicating with Alpaca Markets REST API."
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "py_alpaca_api-0.5.9-py3-none-any.whl", hash = "sha256:7db594efce8551030bc4a5ee8f173fdd362c5d4514af90ab20f58d3f268cfd70"},
-    {file = "py_alpaca_api-0.5.9.tar.gz", hash = "sha256:2d7ae4d864c9e2f29dd663e69c5486c3f74a210a551171078e2e7c4a022f7ac4"},
+    {file = "py_alpaca_api-0.6.0-py3-none-any.whl", hash = "sha256:d21f5f769bc1b102766c667117ee58e3c0f87828e865e593195710138a12a541"},
+    {file = "py_alpaca_api-0.6.0.tar.gz", hash = "sha256:58ab26d41c0e18235fb9d08b611ada2f8d4530f5c47f3e5ab673296f69495cb8"},
 ]
 
 [package.dependencies]
@@ -1185,4 +1185,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "568754c8aa7c0e191e6703718f2237dbdf071f217630f1d2aa232d7f10f294b1"
+content-hash = "c32d3c7f3adfad2439788d8aa3fcfffe2aa16450774105565ec6297ad8a54fe2"
