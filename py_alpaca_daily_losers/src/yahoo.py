@@ -6,11 +6,13 @@ logger = logging.getLogger('yfinance')
 logger.disabled = True
 logger.propagate = False
 
+
 class Yahoo:
     def __init__(self):
         pass
 
-    def get_ticker(self, ticker):
+    @staticmethod
+    def get_ticker(ticker):
         return yf.Ticker(ticker)
 
     def get_recommendations(self, ticker):

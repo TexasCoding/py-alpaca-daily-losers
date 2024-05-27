@@ -148,10 +148,10 @@ class DailyLosers:
         Returns:
             None
         """
-        print("Liquidating positions for capital to make cash 10% of the portfolio")
+        print("Liquidating positions to make Cash 10% of the portfolio...")
 
         current_positions = self.alpaca.position.get_all()
-        if current_positions.empty:
+        if current_positions[current_positions["symbol"] != "Cash"].empty:
             sold_message = "No positions available to liquidate for capital"
             send_message(sold_message)
             return
@@ -205,30 +205,44 @@ class DailyLosers:
 
         """
         losers = self.get_daily_losers()
-        buy_opportunities = self.filter_tickers_with_news(losers)
+        tickers = self.filter_tickers_with_news(losers)
 
-        if len(buy_opportunities) > 0:
-            print(f"{len(buy_opportunities)} buy opportunities found. Opening positions...")
-            self.open_positions()
+        if len(tickers) > 0:
+            print(f"{len(tickers)} buy opportunities found. Opening positions...")
+            self.open_positions(tickers=tickers)
         else:
             print("No buy opportunities found")
 
     ########################################################
     # Define the open_positions method
     ########################################################
-    def open_positions(self, ticker_limit=8):
+    def open_positions(self, tickers: list,  ticker_limit=8):
         """
-        Opens positions by buying stocks based on buy opportunities and openai sentiment.
+        This method is used to open buying positions based on buy opportunities and openai sentiment.
+        By default, it limits the number of stocks to 8.
 
-        Args:
-            ticker_limit (int): The maximum number of stocks to buy. Defaults to 8.
+        Parameters:
+        - tickers: A list of ticker symbols for the stocks to be considered for opening positions.
+        - ticker_limit: An optional parameter to limit the number of stocks to be considered. Default value is 8.
 
         Returns:
-            None
+        None
+
+        Behaviour:
+        - Calculates the available cash in the account using `self.alpaca.account.get().cash`.
+        - If the `tickers` list is empty, `notional` is set to 0. Otherwise, `notional` is calculated as
+        (available_cash / len(tickers[:ticker_limit])) - 1.
+        - Initializes an empty list `bought_positions` to store details of the bought positions.
+        - Iterates through the first `ticker_limit` elements of the `tickers` list.
+          - Checks if the market is open using `self.alpaca.market.clock().is_open`.
+          - If the market is open, attempts to buy the stock using
+          `self.alpaca.order.market(symbol=ticker, notional=notional)`.
+          - If an exception occurs, sends an error message indicating the issue.
+          - If the buy order is successful, adds the details of the bought position to `bought_positions`.
+        - Calls `self._send_position_messages(bought_positions, "buy")` to send messages related to the
+            bought positions.
         """
         print("Buying orders based on buy opportunities and openai sentiment. Limit to 8 stocks by default")
-
-        tickers = self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
 
         available_cash = self.alpaca.account.get().cash
 
@@ -255,6 +269,19 @@ class DailyLosers:
     # Define the update_or_create_watchlist method
     ########################################################
     def update_or_create_watchlist(self, name, symbols):
+        """
+        Updates or creates a watchlist with the given name and symbols.
+
+        Parameters:
+        - name (str): The name of the watchlist.
+        - symbols (list): A list of symbols to include in the watchlist.
+
+        Returns:
+        None
+
+        Raises:
+        ValueError: If an error occurs while updating the watchlist, a new watchlist will be created instead.
+        """
         try:
             self.alpaca.watchlist.update(watchlist_name=name, symbols=symbols)
         except ValueError:
@@ -289,7 +316,7 @@ class DailyLosers:
 
         for i, ticker in tqdm(
                 enumerate(tickers),
-                desc=f"• Analizing news for {len(tickers)} tickers, using OpenAI & MarketAux: ",
+                desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & MarketAux: ",
         ):
             m_news = news.get_symbol_news(symbol=ticker)
             articles = article.extract_articles(m_news)
@@ -330,7 +357,7 @@ class DailyLosers:
         Returns:
             A list of assets in the 'DailyLosers' watchlist.
         """
-        filtered_losers = []
+
         yahoo = Yahoo()
         losers = self.alpaca.screener.losers(total_losers_returned=130)[
             "symbol"
@@ -356,41 +383,23 @@ class DailyLosers:
     ########################################################
     def buy_criteria(self, data: pd.DataFrame) -> list:
         """
-        This method called `buy_criteria` takes a DataFrame `data` as input and returns a list of ticker symbols that
-        meet the buy criteria.
+        This function is used to filter and select specific stock tickers based on certain criteria.
+        The filtered tickers are then added to a watchlist and returned.
 
         Parameters:
-            - data: A pandas DataFrame containing the necessary columns for buy criteria evaluation.
+        - self: Instance of the class containing this method.
+        - data: Pandas DataFrame containing stock data.
 
         Returns:
-            - filtered_data: A list of ticker symbols that meet the buy criteria.
+        - A list of stock assets that meet the buy criteria.
 
-        If no tickers meet the buy criteria, a message "No tickers meet the buy criteria" is printed and an empty list
-        is returned.
-
-        The method first creates a buy_criteria by checking if any of the columns "bblo14", "bblo30", "bblo50",
-        "bblo200" in the DataFrame `data` are equal to 1 or if any of the columns "rsi14", "rsi30", "rsi50", "rsi200"
-        are less than or equal to 30. The result of this operation is a boolean Series.
-
-        Next, the method filters the DataFrame `data` using the buy_criteria, and the resulting DataFrame is assigned
-        to `buy_filtered_data`.
-
-        The ticker symbols from the "symbol" column of `buy_filtered_data` are stored in the `filtered_data` list.
-
-        If `filtered_data` is empty, a message is printed indicating that no tickers meet the buy criteria and an empty
-        list is returned.
-
-        Otherwise, the method calls `update_or_create_watchlist` with `filtered_data` as the list of symbols and the
-        name "DailyLosers" as the watchlist name.
-
-        In the end, the method calls `self.alpaca.watchlist.get_assets` to get the assets in the watchlist called
-        "DailyLosers" and returns the result.
+        Example Usage:
+        buy_criteria(data)
 
         """
 
-        buy_criteria = (
-                           (data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)
-                       ) | ((data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1))
+        buy_criteria = (((data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)) |
+                        ((data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1)))
 
         buy_filtered_data = data[buy_criteria]
 
@@ -409,25 +418,20 @@ class DailyLosers:
     ########################################################
     def get_ticker_data(self, tickers) -> pd.DataFrame:
         """
-        Gets ticker data for multiple stocks from the Alpaca API.
+        Retrieves technical data for the given list of tickers using the Alpaca API.
 
-        Parameters:
-        - `tickers` (list): A list of ticker symbols for the stocks.
+        Args:
+            tickers (list): List of ticker symbols.
 
         Returns:
-        - `df_tech` (pd.DataFrame): A DataFrame containing the ticker data, RSI, and Bollinger Bands for each stock.
+            pd.DataFrame: DataFrame containing technical data for the tickers.
 
-        Example usage:
-        ```python
-        tickers = ['AAPL', 'MSFT', 'GOOGL']
-        data = get_ticker_data(tickers)
-        ```
         """
         df_tech = []
 
         for i, ticker in tqdm(
                 enumerate(tickers),
-                desc="• Analizing ticker data for "
+                desc="• Analyzing ticker data for "
                      + str(len(tickers))
                      + " symbols from Alpaca API",
         ):

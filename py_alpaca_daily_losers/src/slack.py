@@ -27,7 +27,7 @@ class Slack:
     def send_message(self, channel, message, username):
         """
         Send a message to the Slack channel
-        :param channel: Slack channel
+        :param channel:
         :param message: Message to send
         :param username: Username to send the message as
         If the slack_workspace_token is not set, print the message instead of sending it to Slack
