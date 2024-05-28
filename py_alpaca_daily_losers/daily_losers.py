@@ -320,7 +320,6 @@ class DailyLosers:
         Raises:
         ValueError: If an error occurs while updating the watchlist, a new watchlist will be created instead.
         """
-        symbols = ','.join(symbols)
         try:
             self.alpaca.watchlist.update(watchlist_name=name, symbols=symbols)
         except Exception:
