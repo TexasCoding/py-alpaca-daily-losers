@@ -2,8 +2,6 @@ import os
 import pandas as pd
 from py_alpaca_api.alpaca import PyAlpacaApi
 
-from .src.marketaux import MarketAux
-from .src.article_extractor import ArticleExtractor
 from .src.openai import OpenAIAPI
 from .src.yahoo import Yahoo
 from .src.global_fuctions import send_message
@@ -82,7 +80,7 @@ class DailyLosers:
         print("Selling positions based on sell criteria")
 
         sell_opportunities = self.get_sell_opportunities()
-        if sell_opportunities == []:
+        if not sell_opportunities:
             send_message("No sell opportunities found.")
             return
 
@@ -91,13 +89,11 @@ class DailyLosers:
 
         for symbol in sell_opportunities:
             try:
-                qty = current_positions[
-                    current_positions["symbol"] == symbol
-                ]["qty"].values[0]
+                qty = current_positions[current_positions["symbol"] == symbol][
+                    "qty"
+                ].values[0]
 
-                self.alpaca.position.close(
-                    symbol_or_id=symbol, percentage=100
-                )
+                self.alpaca.position.close(symbol_or_id=symbol, percentage=100)
             except Exception as e:
                 send_message(f"Error selling {symbol}: {e}")
                 continue
@@ -252,29 +248,14 @@ class DailyLosers:
     ########################################################
     def open_positions(self, tickers: list, ticker_limit=8):
         """
-        This method is used to open buying positions based on buy opportunities and openai sentiment.
-        By default, it limits the number of stocks to 8.
+        Opens buying orders based on buy opportunities and openai sentiment.
 
-        Parameters:
-        - tickers: A list of ticker symbols for the stocks to be considered for opening positions.
-        - ticker_limit: An optional parameter to limit the number of stocks to be considered. Default value is 8.
+        Args:
+            tickers (list): A list of tickers to buy.
+            ticker_limit (int, optional): The maximum number of tickers to buy. Defaults to 8.
 
         Returns:
-        None
-
-        Behaviour:
-        - Calculates the available cash in the account using `self.alpaca.account.get().cash`.
-        - If the `tickers` list is empty, `notional` is set to 0. Otherwise, `notional` is calculated as
-        (available_cash / len(tickers[:ticker_limit])) - 1.
-        - Initializes an empty list `bought_positions` to store details of the bought positions.
-        - Iterates through the first `ticker_limit` elements of the `tickers` list.
-          - Checks if the market is open using `self.alpaca.market.clock().is_open`.
-          - If the market is open, attempts to buy the stock using
-          `self.alpaca.order.market(symbol=ticker, notional=notional)`.
-          - If an exception occurs, sends an error message indicating the issue.
-          - If the buy order is successful, adds the details of the bought position to `bought_positions`.
-        - Calls `self._send_position_messages(bought_positions, "buy")` to send messages related to the
-            bought positions.
+            None
         """
         print(
             "Buying orders based on buy opportunities and openai sentiment. Limit to 8 stocks by default"
@@ -330,42 +311,28 @@ class DailyLosers:
     ########################################################
     def filter_tickers_with_news(self, tickers) -> list:
         """
-        Filter tickers with news using OpenAI and MarketAux.
+        Filters tickers based on the presence of news articles using OpenAI and Yahoo Finance APIs.
 
-        This method takes a list of tickers as input and filters out the tickers that have news articles associated
-        with them. It uses the MarketAux API to retrieve news for each ticker and the ArticleExtractor to extract
-        articles from the news. It also utilizes the OpenAI API to perform sentiment analysis on the articles and
-        determine if they are bullish or bearish.
-
-        Parameters:
-        - tickers (list): A list of tickers to filter.
-
-        Returns:
-        - list: A list of tickers that have news articles associated with them.
-
-        Note:
-        - If no tickers with news are found, an empty list is returned.
-
+        :param tickers: A list of tickers to filter.
+        :return: A list of tickers that have been filtered through OpenAI and Yahoo Finance.
         """
-        news = MarketAux()
-        article = ArticleExtractor()
+        yahoo = Yahoo()
         openai = OpenAIAPI()
         filtered_tickers = []
 
         for i, ticker in tqdm(
             enumerate(tickers),
-            desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & MarketAux: ",
+            desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & Yahoo Finance: ",
         ):
-            m_news = news.get_symbol_news(symbol=ticker)
-            articles = article.extract_articles(m_news)
+            articles = yahoo.get_articles(ticker)
 
             if len(articles) > 0:
                 bullish = 0
                 bearish = 0
-                for art in articles:
+                for art in articles[:3]:
                     sentiment = openai.get_sentiment_analysis(
                         title=art["title"],
-                        symbol=ticker,
+                        symbol=art["symbol"],
                         article=art["content"],
                     )
                     if sentiment == "BULLISH":
@@ -391,13 +358,22 @@ class DailyLosers:
     ########################################################
     def get_daily_losers(self) -> list:
         """
-        Retrieves the daily losers from Alpaca, filters them based on certain criteria,
-        and updates the 'DailyLosers' watchlist in Alpaca.
+        This function is used to retrieve a list of daily losers from the stock market. It uses the Alpaca API to get a
+        list of loser symbols and performs some criteria checks on them before returning the final list of symbols.
+
+        Parameters:
+        - None
 
         Returns:
-            A list of assets in the 'DailyLosers' watchlist.
-        """
+        - A list of stock symbols representing the daily losers.
 
+        Note:
+        - This function relies on the 'Yahoo' class and its associated methods.
+        - This function depends on the 'get_ticker_data()', 'buy_criteria()', 'send_message()', 'get_sentiment()',
+        'update_or_create_watchlist()', and 'get_assets()' methods from other parts of the code.
+        - The 'send_message()' function is responsible for sending a message/notification.
+        - The 'tqdm' library is used to display a progress bar while processing the symbols.
+        """
         yahoo = Yahoo()
         losers = self.alpaca.screener.losers(total_losers_returned=130)[
             "symbol"
