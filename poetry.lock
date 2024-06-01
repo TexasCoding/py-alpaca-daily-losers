@@ -1888,13 +1888,13 @@ tests = ["pytest"]
 
 [[package]]
 name = "py-alpaca-api"
-version = "0.6.4"
+version = "1.0.0"
 description = "Python package, for communicating with Alpaca Markets REST API."
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "py_alpaca_api-0.6.4-py3-none-any.whl", hash = "sha256:0dfb892e32a4937206c3341bc9ec25c59e9310bbcc540e120d1d0ce55451d0ce"},
-    {file = "py_alpaca_api-0.6.4.tar.gz", hash = "sha256:7bc3822620dd9ac04a5330e093a1b23a37361f0366171a46a2f3a0aa2746f624"},
+    {file = "py_alpaca_api-1.0.0-py3-none-any.whl", hash = "sha256:6bfbd723479a9f484f2ce2a53070e9450f1c3b3f163334ad4a709d1722dd51e3"},
+    {file = "py_alpaca_api-1.0.0.tar.gz", hash = "sha256:f61f88213d69791c225e8257e5418995f2c54c7df8cb6907bf0c7810929f47fa"},
 ]
 
 [package.dependencies]
@@ -3156,4 +3156,4 @@ repair = ["scipy (>=1.6.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "2977b14012d16e2728086b47fabb25214f6990490900274481e4187a13443949"
+content-hash = "14a034976d25905340c63896fc9f76969a8ecbb7d8a1cea0b699a8d8fb292ff7"
