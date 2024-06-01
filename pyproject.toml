@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-alpaca-daily-losers"
-version = "0.3.0"
+version = "0.3.4"
 description = "Daily Losers strategy, uses py-alpaca-api for Alpaca Markets integration."
 authors = ["TexasCoding <jeff10278@me.com>"]
 readme = "README.md"
@@ -15,6 +15,7 @@ ta = "^0.11.0"
 py-alpaca-api = "^0.6.0"
 tqdm = "^4.66.4"
 yfinance = "^0.2.40"
+beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
