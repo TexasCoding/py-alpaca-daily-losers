@@ -1,7 +1,8 @@
 import os
-from .slack import Slack
 
 from dotenv import load_dotenv
+
+from .slack import Slack
 
 load_dotenv()
 
@@ -18,6 +19,4 @@ def send_message(message):
     if production == "False":
         print(message)
     else:
-        slack.send_message(
-            channel="#app-development", message=message, username=slack_username
-        )
+        slack.send_message(channel="#app-development", message=message, username=slack_username)

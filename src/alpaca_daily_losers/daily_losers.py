@@ -1,19 +1,17 @@
 import os
+from datetime import datetime, timedelta
+
 import pandas as pd
-from py_alpaca_api.alpaca import PyAlpacaApi
-
-from .src.openai import OpenAIAPI
-from .src.yahoo import Yahoo
-from .src.global_fuctions import send_message
-
-from ta.volatility import BollingerBands
-from ta.momentum import RSIIndicator
-
-from tqdm import tqdm
 from dotenv import load_dotenv
-from datetime import datetime
-from datetime import timedelta
+from py_alpaca_api.alpaca import PyAlpacaApi
 from pytz import timezone
+from ta.momentum import RSIIndicator
+from ta.volatility import BollingerBands
+from tqdm import tqdm
+
+from .global_functions import send_message
+from .openai import OpenAIAPI
+from .yahoo import Yahoo
 
 tz = timezone("US/Eastern")
 ctime = datetime.now(tz)
@@ -31,19 +29,18 @@ api_paper = True if os.getenv("API_PAPER") == "True" else False
 class DailyLosers:
     def __init__(self):
         """
-        This code initializes an instance of the PyAlpacaApi class with the provided API key and API secret.
-        It sets the api_paper parameter to True, indicating that the API should be used in a paper trading environment.
+        This code initializes an instance of the PyAlpacaApi class with the provided API key
+        and API secret. It sets the api_paper parameter to True, indicating that the API
+        should be used in a paper trading environment.
 
         The value of the production variable is derived from the environment variable "PRODUCTION".
         If the value of "PRODUCTION" is "True", the production variable is set to True.
         Otherwise, it is set to False.
 
-        This code is used to configure and set up the PyAlpacaApi for interacting with the Alpaca API in a Python
-        application.
+        This code is used to configure and set up the PyAlpacaApi for interacting with the
+        Alpaca API in a Python application.
         """
-        self.alpaca = PyAlpacaApi(
-            api_key=api_key, api_secret=api_secret, api_paper=True
-        )
+        self.alpaca = PyAlpacaApi(api_key=api_key, api_secret=api_secret, api_paper=True)
         self.production = True if os.getenv("PRODUCTION") == "True" else False
 
     def run(self):
@@ -64,50 +61,36 @@ class DailyLosers:
     # Define the sell_positions_from_criteria method
     ########################################################
     def sell_positions_from_criteria(self):
-        """
-        Sell Positions from Criteria
-
-        This method is used to sell positions based on sell criteria. It retrieves sell opportunities, current
-        positions, and then iterates through the sell opportunities to sell the stocks.
-
-        Parameters:
-            - None
-
-        Returns:
-            - None
-
-        """
         print("Selling positions based on sell criteria")
-
         sell_opportunities = self.get_sell_opportunities()
         if not sell_opportunities:
             send_message("No sell opportunities found.")
             return
-
         current_positions = self.alpaca.position.get_all()
-        sold_positions = []
+        sold_positions = self._sell_positions(sell_opportunities, current_positions)
+        self._send_position_messages(sold_positions, "sell")
 
+    def _sell_positions(self, sell_opportunities, current_positions):
+        SYMBOL = "symbol"
+        QTY = "qty"
+        sold_positions = []
         for symbol in sell_opportunities:
             try:
-                qty = current_positions[current_positions["symbol"] == symbol][
-                    "qty"
-                ].values[0]
-
+                qty = current_positions[current_positions[SYMBOL] == symbol][QTY].values[0]
                 self.alpaca.position.close(symbol_or_id=symbol, percentage=100)
+                sold_positions.append({SYMBOL: symbol, QTY: qty})
             except Exception as e:
                 send_message(f"Error selling {symbol}: {e}")
                 continue
-            else:
-                sold_positions.append({"symbol": symbol, "qty": qty})
-
-        self._send_position_messages(sold_positions, "sell")
+        return sold_positions
 
     ########################################################
     # Define the get_sell_opportunities method
     ########################################################
     def get_sell_opportunities(self) -> list:
         """
-        Retrieves a list of symbols representing potential sell opportunities based on specified criteria.
+        Retrieves a list of symbols representing potential sell opportunities based on
+        specified criteria.
 
         Returns:
             sell_list (list): A list of symbols representing potential sell opportunities.
@@ -116,32 +99,35 @@ class DailyLosers:
         if current_positions[current_positions["symbol"] != "Cash"].empty:
             return []
 
-        current_positions_symbols = current_positions[
-            current_positions["symbol"] != "Cash"
-        ]["symbol"].tolist()
+        current_positions_symbols = current_positions[current_positions["symbol"] != "Cash"][
+            "symbol"
+        ].tolist()
 
         assets_history = self.get_ticker_data(current_positions_symbols)
 
-        sell_criteria = (
-            (assets_history[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70).any(
-                axis=1
-            )
-        ) | (
-            (
-                assets_history[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]] == 1
-            ).any(axis=1)
-        )
+        RSI_COLUMNS = ["rsi14", "rsi30", "rsi50", "rsi200"]
+        BBHI_COLUMNS = ["bbhi14", "bbhi30", "bbhi50", "bbhi200"]
+
+        criterion1 = assets_history[RSI_COLUMNS] >= 70
+        criterion2 = assets_history[BBHI_COLUMNS] == 1
+        sell_criteria = criterion1.any(axis=1) | criterion2.any(axis=1)
 
         sell_filtered_df = assets_history[sell_criteria]
         sell_list = sell_filtered_df["symbol"].tolist()
 
-        percentage_change_list = current_positions[
-            current_positions["profit_pct"] > 0.1
-        ]["symbol"].tolist()
+        take_profit_list = current_positions[current_positions["profit_pct"] > 0.1][
+            "symbol"
+        ].tolist()
 
-        for symbol in percentage_change_list:
-            if symbol not in sell_list:
-                sell_list.append(symbol)
+        stop_loss_list = current_positions[current_positions["profit_pct"] < -0.1][
+            "symbol"
+        ].tolist()
+
+        for take_profit, stop_loss in zip(take_profit_list, stop_loss_list):
+            if take_profit not in sell_list:
+                sell_list.append(take_profit)
+            if stop_loss not in sell_list:
+                sell_list.append(stop_loss)
 
         return sell_list
 
@@ -152,8 +138,9 @@ class DailyLosers:
         """
         Liquidates positions to ensure cash is 10% of the portfolio.
 
-        This method calculates the current cash available and compares it to the total holdings in the portfolio.
-        If the cash is less than 10% of the total holdings, it sells the top 25% performing stocks to make cash
+        This method calculates the current cash available and compares it to the total holdings
+        in the portfolio. If the cash is less than 10% of the total holdings, it sells the
+        top 25% performing stocks to make cash
         10% of the portfolio.
 
         Returns:
@@ -176,21 +163,14 @@ class DailyLosers:
                 current_positions["symbol"] != "Cash"
             ].sort_values(by="profit_pct", ascending=False)
 
-            top_performers = current_positions.iloc[
-                : int(len(current_positions) // 2)
-            ]
+            top_performers = current_positions.iloc[: int(len(current_positions) // 2)]
             top_performers_market_value = top_performers["market_value"].sum()
-            cash_needed = (
-                total_holdings * 0.1 - cash_row["market_value"][0]
-            ) + 5.00
+            cash_needed = (total_holdings * 0.1 - cash_row["market_value"][0]) + 5.00
 
             for index, row in top_performers.iterrows():
-                print(
-                    f"Selling {row['symbol']} to make cash 10% portfolio cash requirement"
-                )
+                print(f"Selling {row['symbol']} to make cash 10% portfolio cash requirement")
                 amount_to_sell = int(
-                    (row["market_value"] / top_performers_market_value)
-                    * cash_needed
+                    (row["market_value"] / top_performers_market_value) * cash_needed
                 )
                 if amount_to_sell == 0:
                     continue
@@ -218,17 +198,22 @@ class DailyLosers:
     ########################################################
     def check_for_buy_opportunities(self):
         """
-        The following code is a method definition that checks for buy opportunities. It performs the following steps:
+        The following code is a method definition that checks for buy opportunities. It performs
+        the following steps:
 
-        1. Calls the `get_daily_losers()` method to get the list of tickers that have performed poorly on a given day.
-        2. Calls the `get_ticker_data(losers)` method, passing in the list of losers, to get detailed data for each
+        1. Calls the `get_daily_losers()` method to get the list of tickers that have performed
+        poorly on a given day.
+        2. Calls the `get_ticker_data(losers)` method, passing in the list of losers, to get
+        detailed data for each
         ticker.
-        3. Applies buy criteria to the ticker data by calling the `buy_criteria(ticker_data)` method, which returns a
-        filtered list of tickers that meet the buy criteria.
-        4. Filters the list of tickers with news by calling the `filter_tickers_with_news(filter_tickers)` method.
+        3. Applies buy criteria to the ticker data by calling the `buy_criteria(ticker_data)`
+        method, which returns a filtered list of tickers that meet the buy criteria.
+        4. Filters the list of tickers with news by calling the
+        `filter_tickers_with_news(filter_tickers)` method.
         5. Opens positions for the filtered tickers by calling the `open_positions()` method.
 
-        This method assumes that the necessary data and methods required for each step are available within the current
+        This method assumes that the necessary data and methods required for each step are
+        available within the current
         class or its dependencies.
 
         """
@@ -236,9 +221,7 @@ class DailyLosers:
         tickers = self.filter_tickers_with_news(losers)
 
         if len(tickers) > 0:
-            print(
-                f"{len(tickers)} buy opportunities found. Opening positions..."
-            )
+            print(f"{len(tickers)} buy opportunities found. Opening positions...")
             self.open_positions(tickers=tickers)
         else:
             print("No buy opportunities found")
@@ -258,7 +241,8 @@ class DailyLosers:
             None
         """
         print(
-            "Buying orders based on buy opportunities and openai sentiment. Limit to 8 stocks by default"
+            "Buying orders based on buy opportunities and openai sentiment. \
+                Limit to 8 stocks by default"
         )
 
         available_cash = self.alpaca.account.get().cash
@@ -278,9 +262,7 @@ class DailyLosers:
                 send_message(f"Error buying {ticker}: {e}")
                 continue
             else:
-                bought_positions.append(
-                    {"symbol": ticker, "notional": round(notional, 2)}
-                )
+                bought_positions.append({"symbol": ticker, "notional": round(notional, 2)})
 
         self._send_position_messages(bought_positions, "buy")
 
@@ -299,7 +281,8 @@ class DailyLosers:
         None
 
         Raises:
-        ValueError: If an error occurs while updating the watchlist, a new watchlist will be created instead.
+        ValueError: If an error occurs while updating the watchlist,
+        a new watchlist will be created instead.
         """
         try:
             self.alpaca.watchlist.update(watchlist_name=name, symbols=symbols)
@@ -347,9 +330,7 @@ class DailyLosers:
             print("No tickers with news found")
             return []
 
-        self.update_or_create_watchlist(
-            name="DailyLosers", symbols=filtered_tickers
-        )
+        self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 
         return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
 
@@ -358,8 +339,9 @@ class DailyLosers:
     ########################################################
     def get_daily_losers(self) -> list:
         """
-        This function is used to retrieve a list of daily losers from the stock market. It uses the Alpaca API to get a
-        list of loser symbols and performs some criteria checks on them before returning the final list of symbols.
+        This function is used to retrieve a list of daily losers from the stock market.
+        It uses the Alpaca API to get a list of loser symbols and performs some
+        criteria checks on them before returning the final list of symbols.
 
         Parameters:
         - None
@@ -369,15 +351,14 @@ class DailyLosers:
 
         Note:
         - This function relies on the 'Yahoo' class and its associated methods.
-        - This function depends on the 'get_ticker_data()', 'buy_criteria()', 'send_message()', 'get_sentiment()',
-        'update_or_create_watchlist()', and 'get_assets()' methods from other parts of the code.
+        - This function depends on the 'get_ticker_data()', 'buy_criteria()', 'send_message()',
+        'get_sentiment()', 'update_or_create_watchlist()', and 'get_assets()'
+        methods from other parts of the code.
         - The 'send_message()' function is responsible for sending a message/notification.
         - The 'tqdm' library is used to display a progress bar while processing the symbols.
         """
         yahoo = Yahoo()
-        losers = self.alpaca.screener.losers(total_losers_returned=130)[
-            "symbol"
-        ].to_list()
+        losers = self.alpaca.screener.losers(total_losers_returned=130)["symbol"].to_list()
 
         losers = self.get_ticker_data(losers)
         losers = self.buy_criteria(losers)
@@ -418,9 +399,9 @@ class DailyLosers:
 
         """
 
-        buy_criteria = (
-            (data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)
-        ) | ((data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1))
+        buy_criteria = ((data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)) | (
+            (data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1)
+        )
 
         buy_filtered_data = data[buy_criteria]
 
@@ -430,9 +411,7 @@ class DailyLosers:
             print("No tickers meet the buy criteria")
             return []
 
-        self.update_or_create_watchlist(
-            name="DailyLosers", symbols=filtered_data
-        )
+        self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_data)
 
         return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
 
@@ -454,9 +433,7 @@ class DailyLosers:
 
         for i, ticker in tqdm(
             enumerate(tickers),
-            desc="• Analyzing ticker data for "
-            + str(len(tickers))
-            + " symbols from Alpaca API",
+            desc="• Analyzing ticker data for " + str(len(tickers)) + " symbols from Alpaca API",
         ):
             try:
                 history = self.alpaca.history.get_stock_data(
@@ -467,9 +444,7 @@ class DailyLosers:
 
             try:
                 for n in [14, 30, 50, 200]:
-                    history["rsi" + str(n)] = RSIIndicator(
-                        close=history["close"], window=n
-                    ).rsi()
+                    history["rsi" + str(n)] = RSIIndicator(close=history["close"], window=n).rsi()
                     history["bbhi" + str(n)] = BollingerBands(
                         close=history["close"], window=n, window_dev=2
                     ).bollinger_hband_indicator()
@@ -510,17 +485,15 @@ class DailyLosers:
         try:
             position_name = position_names[pos_type]
         except KeyError:
-            raise ValueError(
-                'Invalid type. Must be "sell", "buy", or "liquidate".'
-            )
+            raise ValueError('Invalid type. Must be "sell", "buy", or "liquidate".')
 
         if not positions:
             position_message = f"No positions to {pos_type}"
         else:
-            is_market_open = (
-                "" if self.alpaca.market.clock().is_open else " pretend"
+            is_market_open = "" if self.alpaca.market.clock().is_open else " pretend"
+            position_message = (
+                f"Successfully{is_market_open} {position_name} the following positions:\n"
             )
-            position_message = f"Successfully{is_market_open} {position_name} the following positions:\n"
 
             for position in positions:
 

@@ -1,7 +1,7 @@
 import os
-from openai import OpenAI
 
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
@@ -20,9 +20,7 @@ class OpenAIAPI:
         return: OpenAI response
         """
         openai = OpenAI(api_key=self.api_key)
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo", messages=msgs
-        )
+        response = openai.chat.completions.create(model="gpt-3.5-turbo", messages=msgs)
         message = response
         return message
 
@@ -33,8 +31,8 @@ class OpenAIAPI:
         """
         get_sentiment_analysis(self, title, symbol, article)
 
-        This method is used to get the sentiment analysis for financial news. It takes in the title, symbol,
-        and article as parameters.
+        This method is used to get the sentiment analysis for financial news.
+        It takes in the title, symbol, and article as parameters.
 
         Parameters:
             - title (str): The title of the news.
@@ -42,15 +40,17 @@ class OpenAIAPI:
             - article (str): The content of the news article.
 
         Returns:
-            - signal (str): The sentiment analysis result as either "BEARISH", "BULLISH", or "NEUTRAL".
+            - signal (str): The sentiment analysis result as either
+            "BEARISH", "BULLISH", or "NEUTRAL".
 
         """
         message_history = []
         sentiments = []
         # Send the system message to the OpenAI API
         system_message = "You will work as a Sentiment Analysis for Financial news. \
-            I will share news headline, stock symbol and article. \
-                You will only answer as:\n\n BEARISH,BULLISH,NEUTRAL. No further explanation. \n Got it?"
+                        I will share news headline, stock symbol and article. \
+                        You will only answer as:\n\n BEARISH,BULLISH,NEUTRAL. \
+                        No further explanation. \n Got it?"
 
         message_history.append({"content": system_message, "role": "user"})
         self.chat(message_history)
