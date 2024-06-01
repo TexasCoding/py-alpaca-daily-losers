@@ -1,0 +1,65 @@
+[tool.poetry]
+name = "py-alpaca-daily-losers"
+version = "1.0.0"
+description = "Daily Losers strategy, uses py-alpaca-api for Alpaca Markets integration."
+authors = ["TexasCoding <jeff10278@me.com>"]
+readme = "README.md"
+packages = [{include = "alpaca_daily_losers", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+py-alpaca-api = "^0.6.4"
+requests = "^2.32.3"
+openai = "^1.30.5"
+slack-sdk = "^3.27.2"
+ta = "^0.11.0"
+yfinance = "^0.2.40"
+beautifulsoup4 = "^4.12.3"
+python-dotenv = "^1.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+isort = "^5.13.2"
+pre-commit = "^3.7.1"
+ipykernel = "^6.29.4"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.1"
+hypothesis = "^6.103.0"
+flake8 = "^7.0.0"
+pytest-mock = "^3.14.0"
+
+
+[tool.poetry.group.doc.dependencies]
+sphinx = "^7.3.7"
+sphinx-autobuild = "^2024.4.16"
+myst-parser = "^3.0.1"
+nbsphinx = "^0.9.4"
+sphinx-autoapi = "^3.1.1"
+sphinx-rtd-theme = "^2.0.0"
+
+[tool.black]
+line-length = 100
+exclude = '''
+/(
+\.git
+| \.hg
+| \.mypy_cache
+| \.tox
+| \.venv
+| _build
+| buck-out
+| build
+| dist
+| docs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+known_third_party = []
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
