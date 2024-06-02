@@ -358,7 +358,8 @@ class DailyLosers:
         - The 'tqdm' library is used to display a progress bar while processing the symbols.
         """
         yahoo = Yahoo()
-        losers = self.alpaca.screener.losers(total_losers_returned=130)["symbol"].to_list()
+        # losers = self.alpaca.screener.losers(total_losers_returned=130)["symbol"].to_list()
+        losers = self.alpaca.predictor.get_losers_to_gainers()
 
         losers = self.get_ticker_data(losers)
         losers = self.buy_criteria(losers)
