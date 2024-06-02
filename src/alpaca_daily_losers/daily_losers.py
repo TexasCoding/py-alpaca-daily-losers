@@ -308,7 +308,8 @@ class DailyLosers:
             desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & Yahoo Finance: ",
         ):
             articles = yahoo.get_articles(ticker)
-
+            if articles is None:
+                continue
             if len(articles) > 0:
                 bullish = 0
                 bearish = 0
