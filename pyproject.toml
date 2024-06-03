@@ -1,9 +1,13 @@
 [tool.poetry]
 name = "py-alpaca-daily-losers"
-version = "1.0.3"
+version = "1.0.4"
 description = "Daily Losers strategy, uses py-alpaca-api for Alpaca Markets integration."
 authors = ["TexasCoding <jeff10278@me.com>"]
+license = "MIT"
 readme = "README.md"
+homepage = "https://pypi.org/project/py-alpaca-daily-losers/"
+repository = "https://github.com/TexasCoding/py-alpaca-daily-losers"
+documentation = "https://py-alpaca-daily-losers.readthedocs.io/en/latest/"
 packages = [{include = "alpaca_daily_losers", from = "src"}]
 
 [tool.poetry.dependencies]
