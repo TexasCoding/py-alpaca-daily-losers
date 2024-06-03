@@ -401,9 +401,12 @@ class DailyLosers:
 
         """
 
-        buy_criteria = ((data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)) | (
-            (data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1)
-        )
+        RSI_COLUMNS = ["rsi14", "rsi30", "rsi50", "rsi200"]
+        BBLO_COLUMNS = ["bblo14", "bblo30", "bblo50", "bblo200"]
+
+        criterion1 = data[RSI_COLUMNS] <= 30
+        criterion2 = data[BBLO_COLUMNS] == 1
+        buy_criteria = criterion1.any(axis=1) | criterion2.any(axis=1)
 
         buy_filtered_data = data[buy_criteria]
 
