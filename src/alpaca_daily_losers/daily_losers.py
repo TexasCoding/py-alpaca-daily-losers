@@ -22,13 +22,11 @@ year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 
 # get a custom logger & set the logging level
 py_logger = logging.getLogger(__name__)
-py_logger.setLevel(logging.INFO)
-py_handler = logging.FileHandler(
-    f"logs/{__name__}{ctime.strftime("%Y-%m-%dT%H%M%S")}.log", mode="w"
+logging.basicConfig(
+    filename="daily_losers.log",
+    level=logging.INFO,
+    format="%(name)s %(asctime)s %(levelname)s %(message)s",
 )
-py_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-py_handler.setFormatter(py_formatter)
-py_logger.addHandler(py_handler)
 
 load_dotenv()
 
