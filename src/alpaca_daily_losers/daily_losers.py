@@ -24,7 +24,7 @@ year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 py_logger = logging.getLogger(__name__)
 logging.basicConfig(
     filename="daily_losers.log",
-    level=logging.INFO,
+    level=logging.WARNING,
     format="%(name)s %(asctime)s %(levelname)s %(message)s",
 )
 
@@ -61,7 +61,6 @@ class DailyLosers:
         2. Liquidates the positions to make cash 10% of the portfolio.
         3. Checks for buy opportunities.
         """
-        py_logger.info(f"New logger started for module {__name__}...")
         try:
             self.sell_positions_from_criteria()
         except Exception as e:
@@ -320,7 +319,6 @@ class DailyLosers:
             )
             try:
                 self.alpaca.watchlist.create(name=name, symbols=symbols)
-                py_logger.info(f"{name} watchlist was succesfully created.")
             except Exception as e:
                 py_logger.error(f"Could not create or update the watchlist {name}.\nError: {e}")
 
@@ -347,9 +345,9 @@ class DailyLosers:
             except Exception as e:
                 py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
                 continue
-            else:
-                if articles is None:
-                    continue
+
+            if articles is None:
+                continue
 
             if len(articles) > 0:
                 bullish = 0
