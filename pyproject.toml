@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-alpaca-daily-losers"
-version = "1.0.5"
+version = "1.0.6"
 description = "Daily Losers strategy, uses py-alpaca-api for Alpaca Markets integration."
 authors = ["TexasCoding <jeff10278@me.com>"]
 license = "MIT"
