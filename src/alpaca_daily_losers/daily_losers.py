@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timedelta
 
@@ -18,6 +19,16 @@ ctime = datetime.now(tz)
 today = ctime.strftime("%Y-%m-%d")
 previous_day = (ctime - timedelta(days=1)).strftime("%Y-%m-%d")
 year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
+
+# get a custom logger & set the logging level
+py_logger = logging.getLogger(__name__)
+py_logger.setLevel(logging.INFO)
+py_handler = logging.FileHandler(
+    f"logs/{__name__}{ctime.strftime("%Y-%m-%dT%H%M%S")}.log", mode="w"
+)
+py_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
+py_handler.setFormatter(py_formatter)
+py_logger.addHandler(py_handler)
 
 load_dotenv()
 
@@ -52,23 +63,38 @@ class DailyLosers:
         2. Liquidates the positions to make cash 10% of the portfolio.
         3. Checks for buy opportunities.
         """
-
-        self.sell_positions_from_criteria()
-        self.liquidate_positions_for_capital()
-        self.check_for_buy_opportunities()
+        py_logger.info(f"New logger started for module {__name__}...")
+        try:
+            self.sell_positions_from_criteria()
+        except Exception as e:
+            py_logger.error(f"Error selling positions from criteria. Error {e}")
+            pass
+        try:
+            self.liquidate_positions_for_capital()
+        except Exception as e:
+            py_logger.error(f"Error liquidating positions for capital. Error: {e}")
+            pass
+        try:
+            self.check_for_buy_opportunities()
+        except Exception as e:
+            py_logger.error(f"Error entering new positions. Error {e}")
 
     ########################################################
     # Define the sell_positions_from_criteria method
     ########################################################
     def sell_positions_from_criteria(self):
         print("Selling positions based on sell criteria")
-        sell_opportunities = self.get_sell_opportunities()
-        if not sell_opportunities:
-            send_message("No sell opportunities found.")
-            return
-        current_positions = self.alpaca.position.get_all()
-        sold_positions = self._sell_positions(sell_opportunities, current_positions)
-        self._send_position_messages(sold_positions, "sell")
+        try:
+            sell_opportunities = self.get_sell_opportunities()
+            if not sell_opportunities:
+                send_message("No sell opportunities found.")
+                return
+            current_positions = self.alpaca.position.get_all()
+            sold_positions = self._sell_positions(sell_opportunities, current_positions)
+            self._send_position_messages(sold_positions, "sell")
+        except Exception as e:
+            py_logger.error(f"Error selling positions from criteria. Error: {e}")
+            pass
 
     def _sell_positions(self, sell_opportunities, current_positions):
         SYMBOL = "symbol"
@@ -80,6 +106,7 @@ class DailyLosers:
                 self.alpaca.position.close(symbol_or_id=symbol, percentage=100)
                 sold_positions.append({SYMBOL: symbol, QTY: qty})
             except Exception as e:
+                py_logger.warning(f"Could not close {SYMBOL}. Error: {e}")
                 send_message(f"Error selling {symbol}: {e}")
                 continue
         return sold_positions
@@ -181,6 +208,7 @@ class DailyLosers:
                         side="sell",
                     )
                 except Exception as e:
+                    py_logger.warning(f"Error liquidating position {row["symbol"]}. Error: {e}")
                     send_message(f"Error selling {row['symbol']}: {e}")
                     continue
                 else:
@@ -259,6 +287,7 @@ class DailyLosers:
             try:
                 self.alpaca.order.market(symbol=ticker, notional=notional)
             except Exception as e:
+                py_logger.warning(f"Error entering new position for {ticker}. Error: {e}")
                 send_message(f"Error buying {ticker}: {e}")
                 continue
             else:
@@ -286,8 +315,16 @@ class DailyLosers:
         """
         try:
             self.alpaca.watchlist.update(watchlist_name=name, symbols=symbols)
-        except Exception:
-            self.alpaca.watchlist.create(name=name, symbols=symbols)
+        except Exception as e:
+            py_logger.warning(
+                f"Watchlist could not be updated: {e}:\nTrying to create new watchlist with \
+                    name: {name}"
+            )
+            try:
+                self.alpaca.watchlist.create(name=name, symbols=symbols)
+                py_logger.info(f"{name} watchlist was succesfully created.")
+            except Exception as e:
+                py_logger.error(f"Could not create or update the watchlist {name}.\nError: {e}")
 
     ########################################################
     # Define the filter_tickers_with_news method
@@ -307,9 +344,15 @@ class DailyLosers:
             enumerate(tickers),
             desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & Yahoo Finance: ",
         ):
-            articles = yahoo.get_articles(ticker)
-            if articles is None:
+            try:
+                articles = yahoo.get_articles(ticker)
+            except Exception as e:
+                py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
                 continue
+            else:
+                if articles is None:
+                    continue
+
             if len(articles) > 0:
                 bullish = 0
                 bearish = 0
@@ -373,7 +416,12 @@ class DailyLosers:
             enumerate(losers),
             desc=f"• Getting recommendations for {len(losers)} tickers, from Yahoo Finance: ",
         ):
-            sentiment = yahoo.get_sentiment(ticker)
+            try:
+                sentiment = yahoo.get_sentiment(ticker)
+            except Exception as e:
+                py_logger.warning(f"Error getting sentiment from Yahoo. Error: {e}")
+                sentiment = "NEUTRAL"
+
             if sentiment == "NEUTRAL" or sentiment == "BEARISH":
                 losers.remove(ticker)
 
@@ -401,9 +449,12 @@ class DailyLosers:
 
         """
 
-        buy_criteria = ((data[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)) | (
-            (data[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1)
-        )
+        RSI_COLUMNS = ["rsi14", "rsi30", "rsi50", "rsi200"]
+        BBLO_COLUMNS = ["bblo14", "bblo30", "bblo50", "bblo200"]
+
+        criterion1 = data[RSI_COLUMNS] <= 30
+        criterion2 = data[BBLO_COLUMNS] == 1
+        buy_criteria = criterion1.any(axis=1) | criterion2.any(axis=1)
 
         buy_filtered_data = data[buy_criteria]
 
@@ -441,7 +492,8 @@ class DailyLosers:
                 history = self.alpaca.history.get_stock_data(
                     symbol=ticker, start=year_ago, end=previous_day
                 )
-            except ValueError:
+            except Exception as e:
+                py_logger.warning(f"Error get historical data for {ticker}. Error: {e}")
                 continue
 
             try:

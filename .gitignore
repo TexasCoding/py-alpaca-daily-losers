@@ -171,7 +171,8 @@ __pycache__/
 
 # C extensions
 *.so
-
+logs/*
+!logs/.gitkeep
 # Distribution / packaging
 .Python
 build/
