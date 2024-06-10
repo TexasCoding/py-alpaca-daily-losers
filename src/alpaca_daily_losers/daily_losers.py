@@ -181,14 +181,14 @@ class DailyLosers:
         total_holdings = current_positions["market_value"].sum()
         sold_positions = []
 
-        if cash_row["market_value"][0] / total_holdings < 0.1:
+        if cash_row["market_value"].iloc[0] / total_holdings < 0.1:
             current_positions = current_positions[
                 current_positions["symbol"] != "Cash"
             ].sort_values(by="profit_pct", ascending=False)
 
             top_performers = current_positions.iloc[: int(len(current_positions) // 2)]
             top_performers_market_value = top_performers["market_value"].sum()
-            cash_needed = (total_holdings * 0.1 - cash_row["market_value"][0]) + 5.00
+            cash_needed = (total_holdings * 0.1 - cash_row["market_value"].iloc[0]) + 5.00
 
             for index, row in top_performers.iterrows():
                 print(f"Selling {row['symbol']} to make cash 10% portfolio cash requirement")
