@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from dotenv import load_dotenv
-from py_alpaca_api.alpaca import PyAlpacaApi
+from py_alpaca_api import PyAlpacaAPI
 from pytz import timezone
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 from .global_functions import send_message
 from .openai import OpenAIAPI
-from .yahoo import Yahoo
 
 tz = timezone("US/Eastern")
 ctime = datetime.now(tz)
@@ -23,7 +22,6 @@ year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 # get a custom logger & set the logging level
 py_logger = logging.getLogger(__name__)
 logging.basicConfig(
-    filename="daily_losers.log",
     level=logging.WARNING,
     format="%(name)s %(asctime)s %(levelname)s %(message)s",
 )
@@ -49,7 +47,7 @@ class DailyLosers:
         This code is used to configure and set up the PyAlpacaApi for interacting with the
         Alpaca API in a Python application.
         """
-        self.alpaca = PyAlpacaApi(api_key=api_key, api_secret=api_secret, api_paper=True)
+        self.alpaca = PyAlpacaAPI(api_key=api_key, api_secret=api_secret, api_paper=True)
         self.production = True if os.getenv("PRODUCTION") == "True" else False
 
     def run(self):
@@ -86,7 +84,7 @@ class DailyLosers:
             if not sell_opportunities:
                 send_message("No sell opportunities found.")
                 return
-            current_positions = self.alpaca.position.get_all()
+            current_positions = self.alpaca.trading.positions.get_all()
             sold_positions = self._sell_positions(sell_opportunities, current_positions)
             self._send_position_messages(sold_positions, "sell")
         except Exception as e:
@@ -100,7 +98,7 @@ class DailyLosers:
         for symbol in sell_opportunities:
             try:
                 qty = current_positions[current_positions[SYMBOL] == symbol][QTY].values[0]
-                self.alpaca.position.close(symbol_or_id=symbol, percentage=100)
+                self.alpaca.trading.positions.close(symbol=symbol, qty=qty)
                 sold_positions.append({SYMBOL: symbol, QTY: qty})
             except Exception as e:
                 py_logger.warning(f"Could not close {SYMBOL}. Error: {e}")
@@ -119,7 +117,7 @@ class DailyLosers:
         Returns:
             sell_list (list): A list of symbols representing potential sell opportunities.
         """
-        current_positions = self.alpaca.position.get_all()
+        current_positions = self.alpaca.trading.positions.get_all()
         if current_positions[current_positions["symbol"] != "Cash"].empty:
             return []
 
@@ -139,11 +137,11 @@ class DailyLosers:
         sell_filtered_df = assets_history[sell_criteria]
         sell_list = sell_filtered_df["symbol"].tolist()
 
-        take_profit_list = current_positions[current_positions["profit_pct"] > 0.1][
+        take_profit_list = current_positions[current_positions["profit_pct"] > 10.0][
             "symbol"
         ].tolist()
 
-        stop_loss_list = current_positions[current_positions["profit_pct"] < -0.1][
+        stop_loss_list = current_positions[current_positions["profit_pct"] < -10.0][
             "symbol"
         ].tolist()
 
@@ -172,7 +170,8 @@ class DailyLosers:
         """
         print("Liquidating positions to make Cash 10% of the portfolio...")
 
-        current_positions = self.alpaca.position.get_all()
+        current_positions = self.alpaca.trading.positions.get_all()
+
         if current_positions[current_positions["symbol"] != "Cash"].empty:
             send_message("No positions available to liquidate for capital")
             return
@@ -199,7 +198,7 @@ class DailyLosers:
                 if amount_to_sell == 0:
                     continue
                 try:
-                    self.alpaca.order.market(
+                    self.alpaca.trading.orders.market(
                         symbol=row["symbol"],
                         notional=amount_to_sell,
                         side="sell",
@@ -270,7 +269,7 @@ class DailyLosers:
                 Limit to 8 stocks by default"
         )
 
-        available_cash = self.alpaca.account.get().cash
+        available_cash = self.alpaca.trading.account.get().cash
 
         if len(tickers) == 0:
             send_message("No tickers to buy.")
@@ -282,7 +281,7 @@ class DailyLosers:
 
         for ticker in tickers[:ticker_limit]:
             try:
-                self.alpaca.order.market(symbol=ticker, notional=notional)
+                self.alpaca.trading.orders.market(symbol=ticker, notional=notional)
             except Exception as e:
                 py_logger.warning(f"Error entering new position for {ticker}. Error: {e}")
                 send_message(f"Error buying {ticker}: {e}")
@@ -311,14 +310,14 @@ class DailyLosers:
         a new watchlist will be created instead.
         """
         try:
-            self.alpaca.watchlist.update(watchlist_name=name, symbols=symbols)
+            self.alpaca.trading.watchlists.update(watchlist_name=name, symbols=symbols)
         except Exception as e:
             py_logger.warning(
                 f"Watchlist could not be updated: {e}:\nTrying to create new watchlist with \
                     name: {name}"
             )
             try:
-                self.alpaca.watchlist.create(name=name, symbols=symbols)
+                self.alpaca.trading.watchlists.create(name=name, symbols=symbols)
             except Exception as e:
                 py_logger.error(f"Could not create or update the watchlist {name}.\nError: {e}")
 
@@ -332,7 +331,7 @@ class DailyLosers:
         :param tickers: A list of tickers to filter.
         :return: A list of tickers that have been filtered through OpenAI and Yahoo Finance.
         """
-        yahoo = Yahoo()
+
         openai = OpenAIAPI()
         filtered_tickers = []
 
@@ -341,7 +340,7 @@ class DailyLosers:
             desc=f"• Analyzing news for {len(tickers)} tickers, using OpenAI & Yahoo Finance: ",
         ):
             try:
-                articles = yahoo.get_articles(ticker)
+                articles = self.alpaca.trading.news.get_news(symbol=ticker)
             except Exception as e:
                 py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
                 continue
@@ -372,7 +371,7 @@ class DailyLosers:
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 
-        return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
 
     ########################################################
     # Define the get_daily_losers method
@@ -397,9 +396,8 @@ class DailyLosers:
         - The 'send_message()' function is responsible for sending a message/notification.
         - The 'tqdm' library is used to display a progress bar while processing the symbols.
         """
-        yahoo = Yahoo()
         # losers = self.alpaca.screener.losers(total_losers_returned=130)["symbol"].to_list()
-        losers = self.alpaca.predictor.get_losers_to_gainers()
+        losers = self.alpaca.stock.predictor.get_losers_to_gainers()
 
         losers = self.get_ticker_data(losers)
         losers = self.buy_criteria(losers)
@@ -413,7 +411,7 @@ class DailyLosers:
             desc=f"• Getting recommendations for {len(losers)} tickers, from Yahoo Finance: ",
         ):
             try:
-                sentiment = yahoo.get_sentiment(ticker)
+                sentiment = self.alpaca.trading.recommendations.get_sentiment(ticker)
             except Exception as e:
                 py_logger.warning(f"Error getting sentiment from Yahoo. Error: {e}")
                 sentiment = "NEUTRAL"
@@ -423,7 +421,7 @@ class DailyLosers:
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=losers)
 
-        return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
 
     ########################################################
     # Define the buy_criteria method
@@ -462,7 +460,7 @@ class DailyLosers:
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_data)
 
-        return self.alpaca.watchlist.get_assets(watchlist_name="DailyLosers")
+        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
 
     ########################################################
     # Define the get_ticker_data method
@@ -485,7 +483,7 @@ class DailyLosers:
             desc="• Analyzing ticker data for " + str(len(tickers)) + " symbols from Alpaca API",
         ):
             try:
-                history = self.alpaca.history.get_stock_data(
+                history = self.alpaca.stock.history.get_stock_data(
                     symbol=ticker, start=year_ago, end=previous_day
                 )
             except Exception as e:
@@ -540,13 +538,12 @@ class DailyLosers:
         if not positions:
             position_message = f"No positions to {pos_type}"
         else:
-            is_market_open = "" if self.alpaca.market.clock().is_open else " pretend"
+            is_market_open = "" if self.alpaca.trading.market.clock().is_open else " pretend"
             position_message = (
                 f"Successfully{is_market_open} {position_name} the following positions:\n"
             )
 
             for position in positions:
-
                 if position_name == "liquidated":
                     qty_key = "notional"
                 elif position_name == "sold":

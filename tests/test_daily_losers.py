@@ -1,6 +1,6 @@
 # File: tests_daily_losers.py
 import pytest
-from py_alpaca_api.src.position import Position
+from py_alpaca_api.trading.positions import Positions as Position
 
 from src.alpaca_daily_losers.daily_losers import DailyLosers
 
