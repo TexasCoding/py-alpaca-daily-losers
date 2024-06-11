@@ -36,33 +36,32 @@ class DailyLosers:
             py_logger=py_logger,
         )
 
-    class MyClass:
-        def run(self):
-            """
-            Executes the main logic of the program.
+    def run(self):
+        """
+        Executes the main logic of the program.
 
-            This method performs the following steps:
-            1. Attempts to sell positions based on certain criteria.
-            2. Attempts to liquidate positions for capital.
-            3. Checks for new buy opportunities.
+        This method performs the following steps:
+        1. Attempts to sell positions based on certain criteria.
+        2. Attempts to liquidate positions for capital.
+        3. Checks for new buy opportunities.
 
-            If any of the steps encounter an error, it logs the error and
-            continues to the next step.
-            """
-            try:
-                self.close.sell_positions_from_criteria()
-            except Exception as e:
-                py_logger.error(f"Error selling positions from criteria. Error {e}")
-                pass
-            try:
-                self.liquidate.liquidate_positions()
-            except Exception as e:
-                py_logger.error(f"Error liquidating positions for capital. Error: {e}")
-                pass
-            try:
-                self.check_for_buy_opportunities()
-            except Exception as e:
-                py_logger.error(f"Error entering new positions. Error {e}")
+        If any of the steps encounter an error, it logs the error and
+        continues to the next step.
+        """
+        try:
+            self.close.sell_positions_from_criteria()
+        except Exception as e:
+            py_logger.error(f"Error selling positions from criteria. Error {e}")
+            pass
+        try:
+            self.liquidate.liquidate_positions()
+        except Exception as e:
+            py_logger.error(f"Error liquidating positions for capital. Error: {e}")
+            pass
+        try:
+            self.check_for_buy_opportunities()
+        except Exception as e:
+            py_logger.error(f"Error entering new positions. Error {e}")
 
     ########################################################
     # Define the check_for_buy_opportunities method
