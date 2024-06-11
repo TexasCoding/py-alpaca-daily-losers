@@ -1,38 +1,42 @@
-# File: tests_daily_losers.py
-import pytest
-from py_alpaca_api.trading.positions import Positions as Position
+import io
+from unittest import mock
 
-from src.alpaca_daily_losers.daily_losers import DailyLosers
+from alpaca_daily_losers.daily_losers import DailyLosers
 
 
 class TestDailyLosers:
-    @pytest.fixture
-    def daily_losers_obj(self):
-        return DailyLosers()
 
-    def test_sell_positions_from_criteria_no_sell_opportunities(
-        self, daily_losers_obj, capsys, mocker
-    ):
-        mocker.patch.object(DailyLosers, "get_sell_opportunities", return_value=[])
-        daily_losers_obj.sell_positions_from_criteria()
-        captured = capsys.readouterr()
-        assert "No sell opportunities found." in captured.out
+    def test_check_for_buy_opportunities_with_losers(self, mocker):
+        mocker.patch.object(DailyLosers, "get_daily_losers", return_value=["AAPL", "GOOG"])
+        mocker.patch.object(DailyLosers, "filter_tickers_with_news", return_value=["AAPL"])
+        mocker.patch.object(DailyLosers, "open_positions")
 
-    def test_sell_positions_from_criteria_sell_opportunities_present(
-        self, daily_losers_obj, mocker
-    ):
-        mocker.patch.object(DailyLosers, "get_sell_opportunities", return_value=["AAPL"])
-        mocker.patch.object(Position, "get_all", return_value=["AAPL"])
-        mocker.patch.object(DailyLosers, "_sell_positions", return_value=["AAPL"])
-        mocker.patch.object(DailyLosers, "_send_position_messages")
-        daily_losers_obj.sell_positions_from_criteria()
-        DailyLosers._sell_positions.assert_called_with(["AAPL"], ["AAPL"])
-        DailyLosers._send_position_messages.assert_called_with(["AAPL"], "sell")
+        daily_losers = DailyLosers()
+        daily_losers.check_for_buy_opportunities()
 
-    def test_sell_positions_from_criteria_no_current_positions(self, daily_losers_obj, mocker):
-        mocker.patch.object(DailyLosers, "get_sell_opportunities", return_value=["AAPL"])
-        mocker.patch.object(Position, "get_all", return_value=[])
-        mocker.patch.object(DailyLosers, "_sell_positions", return_value=[])
-        mocker.patch.object(DailyLosers, "_send_position_messages")
-        daily_losers_obj.sell_positions_from_criteria()
-        DailyLosers._sell_positions.assert_called_with(["AAPL"], [])
+        daily_losers.open_positions.assert_called_once_with(tickers=["AAPL"])
+
+    def test_check_for_buy_opportunities_without_losers(self, mocker):
+        mocker.patch.object(DailyLosers, "get_daily_losers", return_value=[])
+        mocker.patch.object(DailyLosers, "filter_tickers_with_news", return_value=[])
+        mocker.patch.object(DailyLosers, "open_positions")
+
+        daily_losers = DailyLosers()
+        with mock.patch("sys.stdout", new=io.StringIO()) as mock_stdout:
+            daily_losers.check_for_buy_opportunities()
+            output = mock_stdout.getvalue().strip()
+
+        assert output == "No buy opportunities found"
+        daily_losers.open_positions.assert_not_called()
+
+    def test_check_for_buy_opportunities_with_empty_tickers(self, mocker):
+        mocker.patch.object(DailyLosers, "get_daily_losers", return_value=["AAPL", "GOOG"])
+        mocker.patch.object(DailyLosers, "filter_tickers_with_news", return_value=[])
+        mocker.patch.object(DailyLosers, "open_positions")
+
+        daily_losers = DailyLosers()
+        with mock.patch("sys.stdout", new=io.StringIO()) as mock_stdout:
+            daily_losers.check_for_buy_opportunities()
+            output = mock_stdout.getvalue().strip()
+
+        assert output == "No buy opportunities found"
