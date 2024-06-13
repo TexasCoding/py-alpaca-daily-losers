@@ -5,11 +5,35 @@ import pandas as pd
 from dotenv import load_dotenv
 from py_alpaca_api import Stock
 from pytz import timezone
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
-from tqdm import tqdm
 
 from .slack import Slack
+
+# from tqdm import tqdm
+
+
+# Define custom progress bar
+progress_bar = Progress(
+    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+    TextColumn("•"),
+    TimeRemainingColumn(),
+)
+
+console = Console()
 
 load_dotenv()
 
@@ -30,31 +54,33 @@ def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:
 
     df_tech = []
 
-    for i, ticker in tqdm(
-        enumerate(tickers),
-        desc="• Analyzing ticker data for " + str(len(tickers)) + " symbols from Alpaca API",
-    ):
-        try:
-            history = stock_client.history.get_stock_data(
-                symbol=ticker, start=year_ago, end=previous_day
-            )
-        except Exception as e:
-            py_logger.warning(f"Error get historical data for {ticker}. Error: {e}")
-            continue
+    with progress_bar as progress:
+        console.print(
+            f"Getting historical data for [bold]{len(tickers)}[/bold] symbols, from Alpaca API: ",
+            style="green",
+        )
+        for i, ticker in progress.track(enumerate(tickers), total=len(tickers)):
+            try:
+                history = stock_client.history.get_stock_data(
+                    symbol=ticker, start=year_ago, end=previous_day
+                )
+            except Exception as e:
+                py_logger.warning(f"Error get historical data for {ticker}. Error: {e}")
+                continue
 
-        try:
-            for n in [14, 30, 50, 200]:
-                history["rsi" + str(n)] = RSIIndicator(close=history["close"], window=n).rsi()
-                history["bbhi" + str(n)] = BollingerBands(
-                    close=history["close"], window=n, window_dev=2
-                ).bollinger_hband_indicator()
-                history["bblo" + str(n)] = BollingerBands(
-                    close=history["close"], window=n, window_dev=2
-                ).bollinger_lband_indicator()
-            df_tech_temp = history.tail(1)
-            df_tech.append(df_tech_temp)
-        except KeyError:
-            pass
+            try:
+                for n in [14, 30, 50, 200]:
+                    history["rsi" + str(n)] = RSIIndicator(close=history["close"], window=n).rsi()
+                    history["bbhi" + str(n)] = BollingerBands(
+                        close=history["close"], window=n, window_dev=2
+                    ).bollinger_hband_indicator()
+                    history["bblo" + str(n)] = BollingerBands(
+                        close=history["close"], window=n, window_dev=2
+                    ).bollinger_lband_indicator()
+                df_tech_temp = history.tail(1)
+                df_tech.append(df_tech_temp)
+            except KeyError:
+                pass
 
     if df_tech:
         df_tech = [x for x in df_tech if not x.empty]
@@ -115,6 +141,6 @@ def send_message(message):
     """
     slack = Slack()
     if production == "False":
-        print(message)
+        console.print(f"Message: {message}", style="yellow")
     else:
         slack.send_message(channel="#app-development", message=message, username=slack_username)
