@@ -2,8 +2,30 @@ import logging
 
 import pandas as pd
 from py_alpaca_api.trading import Trading
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from alpaca_daily_losers.global_functions import send_message, send_position_messages
+
+# Define custom progress bar
+progress_bar = Progress(
+    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+    TextColumn("•"),
+    TimeRemainingColumn(),
+)
+
+console = Console()
 
 
 class Liquidate:
@@ -53,7 +75,11 @@ class Liquidate:
         Returns:
             None
         """
-        print("Liquidating positions to make cash 10% of the portfolio...")
+        # print("Liquidating positions to make cash 10% of the portfolio...")
+        console.print(
+            "Liquidating positions to make cash 10% of the portfolio...",
+            style="green",
+        )
         current_positions = self.trade.positions.get_all()
         if current_positions[current_positions["symbol"] != "Cash"].empty:
             self.send_liquidation_message("No positions available to liquidate for capital")
@@ -65,32 +91,38 @@ class Liquidate:
             top_performers = self.get_top_performers(current_positions)
             top_performers_market_value = top_performers["market_value"].sum()
             cash_needed = self.calculate_cash_needed(total_holdings, cash_row)
-            for index, row in top_performers.iterrows():
-                print(f"Selling {row['symbol']} to make cash 10% portfolio cash requirement")
-                amount_to_sell = int(
-                    (row["market_value"] / top_performers_market_value) * cash_needed
-                )
-                if amount_to_sell == 0:
-                    continue
-                try:
-                    self.trade.orders.market(
-                        symbol=row["symbol"],
-                        notional=amount_to_sell,
-                        side="sell",
+
+            with progress_bar as progress:
+                for index, row in progress.track(
+                    top_performers.iterrows(),
+                    total=len(top_performers),
+                    description="• Liquidating top performers",
+                ):
+                    # print(f"Selling {row['symbol']} to make cash 10% portfolio cash requirement")
+                    amount_to_sell = int(
+                        (row["market_value"] / top_performers_market_value) * cash_needed
                     )
-                except Exception as e:
-                    self.py_logger.warning(
-                        f"Error liquidating position {row['symbol']}. Error: {e}"
-                    )
-                    self.send_liquidation_message(f"Error selling {row['symbol']}: {e}")
-                    continue
-                else:
-                    sold_positions.append(
-                        {
-                            "symbol": row["symbol"],
-                            "notional": round(amount_to_sell, 2),
-                        }
-                    )
+                    if amount_to_sell == 0:
+                        continue
+                    try:
+                        self.trade.orders.market(
+                            symbol=row["symbol"],
+                            notional=amount_to_sell,
+                            side="sell",
+                        )
+                    except Exception as e:
+                        self.py_logger.warning(
+                            f"Error liquidating position {row['symbol']}. Error: {e}"
+                        )
+                        self.send_liquidation_message(f"Error selling {row['symbol']}: {e}")
+                        continue
+                    else:
+                        sold_positions.append(
+                            {
+                                "symbol": row["symbol"],
+                                "notional": round(amount_to_sell, 2),
+                            }
+                        )
         send_position_messages(sold_positions, "liquidate")
 
     @staticmethod
