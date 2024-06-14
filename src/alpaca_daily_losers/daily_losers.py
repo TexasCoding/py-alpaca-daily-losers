@@ -134,7 +134,7 @@ class DailyLosers:
         # )
         console.print(
             f"Entering new posistions based on criteria\n.\
-                Limit to {len(ticker_limit)} stocks by default",
+                Limit to {ticker_limit} stocks.",
             style="green",
         )
 
