@@ -14,12 +14,15 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from alpaca_daily_losers.close_positions import ClosePositions
+from alpaca_daily_losers.global_functions import (
+    get_ticker_data,
+    send_message,
+    send_position_messages,
+)
+from alpaca_daily_losers.liquidate import Liquidate
+from alpaca_daily_losers.openai import OpenAIAPI
 from alpaca_daily_losers.statistics import Statistics
-
-from .close_positions import ClosePositions
-from .global_functions import get_ticker_data, send_message, send_position_messages
-from .liquidate import Liquidate
-from .openai import OpenAIAPI
 
 # from tqdm import tqdm
 
@@ -105,8 +108,8 @@ class DailyLosers:
 
         if len(tickers) > 0:
             console.print(
-                f"Found [bold]{len(tickers)}[/bold] buy opportunities based on daily \
-                    losers and news sentiment",
+                f"Found [bold]{len(tickers)}[/bold] buy \
+                    opportunities based on daily losers and news sentiment",
                 style="red",
             )
             self.open_positions(tickers=tickers)
@@ -134,7 +137,7 @@ class DailyLosers:
         # )
         console.print(
             f"Entering new posistions based on criteria\n.\
-                Limit to {len(ticker_limit)} stocks by default",
+                Limit to {ticker_limit} stocks.",
             style="green",
         )
 
