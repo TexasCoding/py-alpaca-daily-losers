@@ -4,15 +4,6 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 from py_alpaca_api import PyAlpacaAPI
-from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 
 from alpaca_daily_losers.close_positions import ClosePositions
 from alpaca_daily_losers.global_functions import (
@@ -23,22 +14,6 @@ from alpaca_daily_losers.global_functions import (
 from alpaca_daily_losers.liquidate import Liquidate
 from alpaca_daily_losers.openai import OpenAIAPI
 from alpaca_daily_losers.statistics import Statistics
-
-# from tqdm import tqdm
-
-
-# Define custom progress bar
-progress_bar = Progress(
-    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-    BarColumn(),
-    MofNCompleteColumn(),
-    TextColumn("•"),
-    TimeElapsedColumn(),
-    TextColumn("•"),
-    TimeRemainingColumn(),
-)
-
-console = Console()
 
 # get a custom logger & set the logging level
 py_logger = logging.getLogger(__name__)
@@ -107,11 +82,7 @@ class DailyLosers:
         tickers = self.filter_tickers_with_news(losers)
 
         if len(tickers) > 0:
-            console.print(
-                f"Found [bold]{len(tickers)}[/bold] buy \
-                    opportunities based on daily losers and news sentiment",
-                style="red",
-            )
+            print(f"Found [bold]{len(tickers)}[/bold] buy opportunities.")
             self.open_positions(tickers=tickers)
         else:
             print("No buy opportunities found")
@@ -131,15 +102,6 @@ class DailyLosers:
         Returns:
             None
         """
-        # print(
-        #     "Buying orders based on buy opportunities and openai sentiment. \
-        #         Limit to 8 stocks by default"
-        # )
-        console.print(
-            f"Entering new posistions based on criteria\n.\
-                Limit to {ticker_limit} stocks.",
-            style="green",
-        )
 
         available_cash = self.alpaca.trading.account.get().cash
 
@@ -210,37 +172,32 @@ class DailyLosers:
         openai = OpenAIAPI()
         filtered_tickers = []
 
-        with progress_bar as progress:
-            console.print(
-                f"\nAnalyzing news for [bold]{len(tickers)}[/bold] symbols, using OpenAI: ",
-                style="yellow",
-            )
-            for i, ticker in progress.track(enumerate(tickers), total=len(tickers)):
-                try:
-                    articles = self.alpaca.trading.news.get_news(symbol=ticker)
-                except Exception as e:
-                    py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
-                    continue
+        for i, ticker in enumerate(tickers):
+            try:
+                articles = self.alpaca.trading.news.get_news(symbol=ticker)
+            except Exception as e:
+                py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
+                continue
 
-                if articles is None:
-                    continue
+            if articles is None:
+                continue
 
-                if len(articles) > 0:
-                    bullish = 0
-                    bearish = 0
-                    for art in articles[:3]:
-                        sentiment = openai.get_sentiment_analysis(
-                            title=art["title"],
-                            symbol=art["symbol"],
-                            article=art["content"],
-                        )
-                        if sentiment == "BULLISH":
-                            bullish += 1
-                        else:
-                            bearish += 1
+            if len(articles) > 0:
+                bullish = 0
+                bearish = 0
+                for art in articles[:3]:
+                    sentiment = openai.get_sentiment_analysis(
+                        title=art["title"],
+                        symbol=art["symbol"],
+                        article=art["content"],
+                    )
+                    if sentiment == "BULLISH":
+                        bullish += 1
+                    else:
+                        bearish += 1
 
-                    if bullish > bearish:
-                        filtered_tickers.append(ticker)
+                if bullish > bearish:
+                    filtered_tickers.append(ticker)
 
         if len(filtered_tickers) == 0:
             print("No tickers with news found")
@@ -272,21 +229,15 @@ class DailyLosers:
             send_message("No daily losers found.")
             return []
 
-        with progress_bar as progress:
-            console.print(
-                f"Getting recommendations for [bold]{len(losers)}[/bold] symbols, \
-                    from Yahoo Finance: ",
-                style="green",
-            )
-            for i, ticker in progress.track(enumerate(losers), total=len(losers)):
-                try:
-                    sentiment = self.alpaca.trading.recommendations.get_sentiment(ticker)
-                except Exception as e:
-                    py_logger.warning(f"Error getting sentiment from Yahoo. Error: {e}")
-                    sentiment = "NEUTRAL"
+        for i, ticker in enumerate(losers):
+            try:
+                sentiment = self.alpaca.trading.recommendations.get_sentiment(ticker)
+            except Exception as e:
+                py_logger.warning(f"Error getting sentiment from Yahoo. Error: {e}")
+                sentiment = "NEUTRAL"
 
-                if sentiment == "NEUTRAL" or sentiment == "BEARISH":
-                    losers.remove(ticker)
+            if sentiment == "NEUTRAL" or sentiment == "BEARISH":
+                losers.remove(ticker)
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=losers)
 
@@ -342,7 +293,7 @@ class DailyLosers:
         filtered_data = list(buy_filtered_data["symbol"])
 
         if len(filtered_data) == 0:
-            console.print("No tickers meet the buy criteria", style="red")
+            print("No tickers meet the buy criteria")
             return []
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_data)

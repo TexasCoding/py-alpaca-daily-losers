@@ -1,34 +1,12 @@
 import logging
 
 from py_alpaca_api import Stock, Trading
-from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
 
 from alpaca_daily_losers.global_functions import (
     get_ticker_data,
     send_message,
     send_position_messages,
 )
-
-# Define custom progress bar
-progress_bar = Progress(
-    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-    BarColumn(),
-    MofNCompleteColumn(),
-    TextColumn("•"),
-    TimeElapsedColumn(),
-    TextColumn("•"),
-    TimeRemainingColumn(),
-)
-
-console = Console()
 
 
 class ClosePositions:
@@ -56,7 +34,7 @@ class ClosePositions:
             Exception: If an error occurs while selling the positions.
         """
 
-        console.print("Selling positions based on criteria...", style="bold green")
+        # console.print("Selling positions based on criteria...", style="bold green")
         try:
             stocks_to_sell = self.get_stocks_to_sell()
             if not stocks_to_sell:
