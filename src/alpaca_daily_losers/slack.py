@@ -52,5 +52,3 @@ class Slack:
             # Also receive a corresponding status_code
             assert isinstance(e.response.status_code, int)
             print(f"Received a response status_code: {e.response.status_code}")
-        # else:
-        #     print(f"Message sent successfully to {channel}")
