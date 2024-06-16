@@ -233,7 +233,7 @@ class DailyLosers:
             try:
                 sentiment = self.alpaca.trading.recommendations.get_sentiment(ticker)
             except Exception as e:
-                py_logger.warning(f"Error getting sentiment from Yahoo. Error: {e}")
+                py_logger.info(f"Error getting sentiment from Yahoo. Error: {e}")
                 sentiment = "NEUTRAL"
 
             if sentiment == "NEUTRAL" or sentiment == "BEARISH":
