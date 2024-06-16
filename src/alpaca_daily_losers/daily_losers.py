@@ -82,7 +82,7 @@ class DailyLosers:
         tickers = self.filter_tickers_with_news(losers)
 
         if len(tickers) > 0:
-            print(f"Found [bold]{len(tickers)}[/bold] buy opportunities.")
+            print(f"Found {len(tickers)} buy opportunities.")
             self.open_positions(tickers=tickers)
         else:
             print("No buy opportunities found")
@@ -185,7 +185,7 @@ class DailyLosers:
             if len(articles) > 0:
                 bullish = 0
                 bearish = 0
-                for art in articles[:3]:
+                for art in articles[:6]:
                     sentiment = openai.get_sentiment_analysis(
                         title=art["title"],
                         symbol=art["symbol"],
@@ -202,6 +202,8 @@ class DailyLosers:
         if len(filtered_tickers) == 0:
             print("No tickers with news found")
             return []
+
+        print(f"OpenAI Found {len(filtered_tickers)}tickers with BULLISH news sentiment.")
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 
@@ -238,6 +240,12 @@ class DailyLosers:
 
             if sentiment == "NEUTRAL" or sentiment == "BEARISH":
                 losers.remove(ticker)
+
+        if len(losers) == 0:
+            send_message("No daily losers found.")
+            return []
+
+        print(f"Found {len(losers)} daily losers with BULLISH recommendations.")
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=losers)
 
@@ -295,6 +303,8 @@ class DailyLosers:
         if len(filtered_data) == 0:
             print("No tickers meet the buy criteria")
             return []
+
+        print(f"Found {len(filtered_data)} tickers that meet the buy criteria.")
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_data)
 
