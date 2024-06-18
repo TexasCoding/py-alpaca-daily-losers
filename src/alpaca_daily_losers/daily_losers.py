@@ -161,17 +161,22 @@ class DailyLosers:
     # Define the filter_tickers_with_news method
     ########################################################
     def filter_tickers_with_news(
-        self, tickers: list, article_limit: int = 4, filter_ticker_limit: int = 8
+        self, tickers: list, article_limit: int = 4, filter_ticker_limit: int = 6
     ) -> list:
         """
         Filters a list of tickers based on news sentiment analysis.
 
         Args:
-            tickers (list): A list of ticker symbols.
+            tickers (list): A list of tickers to filter.
+            article_limit (int, optional): The maximum number of articles to retrieve for each
+            ticker. Defaults to 4.
+            filter_ticker_limit (int, optional): The maximum number of tickers to include
+            in the filtered list. Defaults to 8.
 
         Returns:
-            list: A list of tickers that have positive news sentiment.
+            list: The filtered list of tickers based on news sentiment analysis.
         """
+
         openai = OpenAIAPI()
         filtered_tickers = []
 
@@ -214,19 +219,9 @@ class DailyLosers:
                     filtered_tickers.append(ticker)
                     py_logger.info(f"{ticker} has bullish news sentiment.")
 
-        # if len(filtered_tickers) == 0:
-        #     print("No tickers with news found")
-        #     return []
-
-        print(f"OpenAI Found {len(filtered_tickers)}tickers with BULLISH news sentiment.")
-
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 
-        return (
-            self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
-            if filtered_tickers
-            else []
-        )
+        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
 
     ########################################################
     # Define the get_daily_losers method
