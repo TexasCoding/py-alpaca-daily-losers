@@ -72,7 +72,7 @@ class DailyLosers:
     ########################################################
     # Define the check_for_buy_opportunities method
     ########################################################
-    def check_for_buy_opportunities(self, buy_limit: int = 6) -> None:
+    def check_for_buy_opportunities(self, buy_limit: int = 6, article_limit: int = 4) -> None:
         """
         Checks for buy opportunities based on daily losers and opens positions if any are found.
 
@@ -80,7 +80,9 @@ class DailyLosers:
             None
         """
         losers = self.get_daily_losers()
-        tickers = self.filter_tickers_with_news(losers, filter_ticker_limit=buy_limit)
+        tickers = self.filter_tickers_with_news(
+            losers, filter_ticker_limit=buy_limit, article_limit=article_limit
+        )
 
         if len(tickers) > 0:
             print(f"Found {len(tickers)} buy opportunities.")
