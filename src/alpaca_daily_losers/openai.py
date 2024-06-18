@@ -29,10 +29,7 @@ class OpenAIAPI:
         :param msgs: List of messages
         return: OpenAI response
         """
-        # openai = OpenAI(api_key=self.api_key)
         response = self.completion_with_backoff(model="gpt-4o", messages=msgs)
-        # message = response
-        print(response)
         return response
 
     ########################################################
