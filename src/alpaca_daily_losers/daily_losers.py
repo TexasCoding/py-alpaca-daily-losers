@@ -42,7 +42,7 @@ class DailyLosers:
         )
         self.statistics = Statistics(account=self.alpaca.trading.account, py_logger=py_logger)
 
-    def run(self):
+    def run(self, buy_limit: int = 6):
         """
         Executes the main logic of the program.
 
@@ -65,7 +65,7 @@ class DailyLosers:
             py_logger.error(f"Error liquidating positions for capital. Error: {e}")
             pass
         try:
-            self.check_for_buy_opportunities()
+            self.check_for_buy_opportunities(buy_limit=buy_limit)
         except Exception as e:
             py_logger.error(f"Error entering new positions. Error {e}")
 
