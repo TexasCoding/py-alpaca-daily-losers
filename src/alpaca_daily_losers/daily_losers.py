@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -182,14 +181,9 @@ class DailyLosers:
         openai = OpenAIAPI()
         filtered_tickers = []
 
-        content_max = 0
-
         for i, ticker in enumerate(tickers):
-            if content_max > 25000:
-                time.sleep(15)
-                content_max = 0
-                py_logger.info("Sleeping for 15 seconds to avoid rate limit.")
-
+            if len(filtered_tickers) >= filter_ticker_limit:
+                break
             try:
                 articles = self.alpaca.trading.news.get_news(
                     symbol=ticker, limit=article_limit, content_length=4000
@@ -205,8 +199,6 @@ class DailyLosers:
                 bullish = 0
                 bearish = 0
                 for art in articles[:article_limit]:
-                    content_max += len(art["content"])
-                    time.sleep(5)
                     sentiment = openai.get_sentiment_analysis(
                         title=art["title"],
                         symbol=art["symbol"],
@@ -219,7 +211,6 @@ class DailyLosers:
 
                 if bullish > bearish:
                     filtered_tickers.append(ticker)
-                    py_logger.info(f"{ticker} has bullish news sentiment.")
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 

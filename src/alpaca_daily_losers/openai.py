@@ -2,6 +2,11 @@ import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from tenacity import (  # for exponential backoff
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 load_dotenv()
 
@@ -9,6 +14,11 @@ load_dotenv()
 class OpenAIAPI:
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
+
+    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+    def completion_with_backoff(self, **kwargs):
+        openai = OpenAI(api_key=self.api_key)
+        return openai.chat.completions.create(**kwargs)
 
     ########################################################
     # Define the OpenAi chat function
@@ -19,10 +29,11 @@ class OpenAIAPI:
         :param msgs: List of messages
         return: OpenAI response
         """
-        openai = OpenAI(api_key=self.api_key)
-        response = openai.chat.completions.create(model="gpt-4o", messages=msgs)
-        message = response
-        return message
+        # openai = OpenAI(api_key=self.api_key)
+        response = self.completion_with_backoff(model="gpt-4o", messages=msgs)
+        # message = response
+        print(response)
+        return response
 
     ########################################################
     # Define the get_market_sentiment function
