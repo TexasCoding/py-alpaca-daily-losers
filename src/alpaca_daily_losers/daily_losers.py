@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -204,7 +205,10 @@ class DailyLosers:
                         symbol=art["symbol"],
                         article=art["content"],
                     )
-                    if sentiment == "BULLISH":
+
+                    regex = re.compile("[^a-zA-Z]")
+                    clean_sentiment = regex.sub("", sentiment)
+                    if clean_sentiment == "BULLISH":
                         bullish += 1
                     else:
                         bearish += 1
