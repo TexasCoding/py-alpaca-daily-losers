@@ -20,7 +20,7 @@ class OpenAIAPI:
         return: OpenAI response
         """
         openai = OpenAI(api_key=self.api_key)
-        response = openai.chat.completions.create(model="gpt-3.5-turbo", messages=msgs)
+        response = openai.chat.completions.create(model="gpt-4o", messages=msgs)
         message = response
         return message
 
