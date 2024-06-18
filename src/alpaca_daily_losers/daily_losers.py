@@ -42,7 +42,14 @@ class DailyLosers:
         )
         self.statistics = Statistics(account=self.alpaca.trading.account, py_logger=py_logger)
 
-    def run(self, buy_limit: int = 6, article_limit: int = 4) -> None:
+    def run(
+        self,
+        buy_limit: int = 4,
+        article_limit: int = 4,
+        stop_loss_percentage: float = 10.0,
+        take_profit_percentage: float = 10.0,
+        future_days: int = 4,
+    ) -> None:
         """
         Executes the main logic of the program.
 
@@ -55,7 +62,10 @@ class DailyLosers:
         continues to the next step.
         """
         try:
-            self.close.sell_positions_from_criteria()
+            self.close.sell_positions_from_criteria(
+                stop_loss_percentage=stop_loss_percentage,
+                take_profit_percentage=take_profit_percentage,
+            )
         except Exception as e:
             py_logger.error(f"Error selling positions from criteria. Error {e}")
             pass
@@ -65,23 +75,29 @@ class DailyLosers:
             py_logger.error(f"Error liquidating positions for capital. Error: {e}")
             pass
         try:
-            self.check_for_buy_opportunities(buy_limit=buy_limit, article_limit=article_limit)
+            self.check_for_buy_opportunities(
+                buy_limit=buy_limit,
+                article_limit=article_limit,
+                future_days=future_days,
+            )
         except Exception as e:
             py_logger.error(f"Error entering new positions. Error {e}")
 
     ########################################################
     # Define the check_for_buy_opportunities method
     ########################################################
-    def check_for_buy_opportunities(self, buy_limit: int = 6, article_limit: int = 4) -> None:
+    def check_for_buy_opportunities(
+        self, buy_limit: int = 6, article_limit: int = 4, future_days: int = 3
+    ) -> None:
         """
         Checks for buy opportunities based on daily losers and opens positions if any are found.
 
         Returns:
             None
         """
-        losers = self.get_daily_losers()
+        losers = self.get_daily_losers(future_days=future_days)
         tickers = self.filter_tickers_with_news(
-            losers, filter_ticker_limit=buy_limit, article_limit=article_limit
+            tickers=losers, filter_ticker_limit=buy_limit, article_limit=article_limit
         )
 
         if len(tickers) > 0:
@@ -166,17 +182,17 @@ class DailyLosers:
         self, tickers: list, article_limit: int = 4, filter_ticker_limit: int = 6
     ) -> list:
         """
-        Filters a list of tickers based on news sentiment analysis.
+        Filters a list of tickers based on the number of news articles available and
+        the sentiment analysis of those articles.
 
         Args:
             tickers (list): A list of tickers to filter.
-            article_limit (int, optional): The maximum number of articles to retrieve for each
-            ticker. Defaults to 4.
-            filter_ticker_limit (int, optional): The maximum number of tickers to include
-            in the filtered list. Defaults to 8.
+            article_limit (int): The maximum number of articles to consider per ticker.
+            filter_ticker_limit (int): The maximum number of tickers to include in the
+            filtered list.
 
         Returns:
-            list: The filtered list of tickers based on news sentiment analysis.
+            list: A list of tickers that pass the filtering criteria.
         """
 
         openai = OpenAIAPI()
@@ -223,16 +239,36 @@ class DailyLosers:
     ########################################################
     # Define the get_daily_losers method
     ########################################################
-    def get_daily_losers(self) -> list:
+    def get_daily_losers(self, future_days: int = 3) -> list:
         """
-        Retrieves the daily losers from Alpaca stock predictor,
-        filters them based on buy criteria,
-        and updates the watchlist with the filtered losers.
+        Get a list of daily losers based on the buy criteria.
+
+        Parameters:
+        - future_days (int): The number of future days to consider for the losers.
 
         Returns:
-            A list of assets in the DailyLosers watchlist.
+        - list: A list of tickers that meet the buy criteria and have a
+        bearish or neutral sentiment.
+
+        Raises:
+        - None
+
+        Example usage:
+
+        losers = get_daily_losers(future_days=3)
+        print(losers)
+
+
+        Note:
+        - The buy criteria is defined in the `buy_criteria` method.
+        - The sentiment for each ticker is checked, and only tickers with a bearish or
+        neutral sentiment are included in the final list.
+        - If no daily losers are found, an empty list is returned.
+        - The 'DailyLosers' watchlist is updated or created with the tickers that meet the criteria.
+        - The assets in the 'DailyLosers' watchlist are returned.
         """
-        losers = self.alpaca.stock.predictor.get_losers_to_gainers()
+
+        losers = self.alpaca.stock.predictor.get_losers_to_gainers(future_periods=future_days)
         losers = get_ticker_data(
             tickers=losers, stock_client=self.alpaca.stock, py_logger=py_logger
         )

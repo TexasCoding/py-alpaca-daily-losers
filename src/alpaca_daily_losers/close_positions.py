@@ -15,7 +15,9 @@ class ClosePositions:
         self.stock = stock_client
         self.py_logger = py_logger
 
-    def sell_positions_from_criteria(self) -> None:
+    def sell_positions_from_criteria(
+        self, stop_loss_percentage: float = 10.0, take_profit_percentage: float = 10.0
+    ) -> None:
         """
         Sells positions based on the defined sell criteria, including RSI and
         Bollinger Band High Index (BBHI) thresholds, as well as take profit
@@ -36,7 +38,10 @@ class ClosePositions:
 
         # console.print("Selling positions based on criteria...", style="bold green")
         try:
-            stocks_to_sell = self.get_stocks_to_sell()
+            stocks_to_sell = self.get_stocks_to_sell(
+                stop_loss_percentage=stop_loss_percentage,
+                take_profit_percentage=take_profit_percentage,
+            )
             if not stocks_to_sell:
                 send_message("No sell opportunities found.")
                 return
@@ -70,7 +75,9 @@ class ClosePositions:
                 send_message(f"Error selling {symbol}: {e}")
         return sold_positions
 
-    def get_stocks_to_sell(self) -> list:
+    def get_stocks_to_sell(
+        self, stop_loss_percentage: float = 10.0, take_profit_percentage: float = 10.0
+    ) -> list:
         """
         Retrieves a list of stocks to sell based on specific criteria.
 
@@ -97,16 +104,17 @@ class ClosePositions:
         sell_filtered_df = assets_history[sell_criteria]
         stocks_to_sell = sell_filtered_df["symbol"].tolist()
 
-        take_profit_list = non_cash_positions[non_cash_positions["profit_pct"] > 8.0][
-            "symbol"
-        ].tolist()
-        stop_loss_list = non_cash_positions[non_cash_positions["profit_pct"] < -8.0][
-            "symbol"
-        ].tolist()
+        take_profit_list = non_cash_positions[
+            non_cash_positions["profit_pct"] > take_profit_percentage
+        ]["symbol"].tolist()
+        stop_loss_list = non_cash_positions[
+            non_cash_positions["profit_pct"] < -stop_loss_percentage
+        ]["symbol"].tolist()
 
-        for take_profit, stop_loss in zip(take_profit_list, stop_loss_list):
+        for take_profit in take_profit_list:
             if take_profit not in stocks_to_sell:
                 stocks_to_sell.append(take_profit)
+        for stop_loss in stop_loss_list:
             if stop_loss not in stocks_to_sell:
                 stocks_to_sell.append(stop_loss)
 
