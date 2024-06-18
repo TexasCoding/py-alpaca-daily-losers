@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -18,7 +19,7 @@ from alpaca_daily_losers.statistics import Statistics
 # get a custom logger & set the logging level
 py_logger = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.WARNING if os.getenv("PRODUCTION") == "True" else logging.INFO,
     format="%(name)s %(asctime)s %(levelname)s %(message)s",
 )
 
@@ -71,7 +72,7 @@ class DailyLosers:
     ########################################################
     # Define the check_for_buy_opportunities method
     ########################################################
-    def check_for_buy_opportunities(self) -> None:
+    def check_for_buy_opportunities(self, buy_limit: int = 6) -> None:
         """
         Checks for buy opportunities based on daily losers and opens positions if any are found.
 
@@ -79,18 +80,18 @@ class DailyLosers:
             None
         """
         losers = self.get_daily_losers()
-        tickers = self.filter_tickers_with_news(losers)
+        tickers = self.filter_tickers_with_news(losers, filter_ticker_limit=buy_limit)
 
         if len(tickers) > 0:
             print(f"Found {len(tickers)} buy opportunities.")
-            self.open_positions(tickers=tickers)
+            self.open_positions(tickers=tickers, ticker_limit=buy_limit)
         else:
             print("No buy opportunities found")
 
     ########################################################
     # Define the open_positions method
     ########################################################
-    def open_positions(self, tickers: list, ticker_limit: int = 8) -> None:
+    def open_positions(self, tickers: list, ticker_limit: int = 6) -> None:
         """
         Opens buying orders based on buy opportunities and openai sentiment.
         Limits the number of stocks to buy to 8 by default.
@@ -159,7 +160,9 @@ class DailyLosers:
     ########################################################
     # Define the filter_tickers_with_news method
     ########################################################
-    def filter_tickers_with_news(self, tickers) -> list:
+    def filter_tickers_with_news(
+        self, tickers: list, article_limit: int = 4, filter_ticker_limit: int = 8
+    ) -> list:
         """
         Filters a list of tickers based on news sentiment analysis.
 
@@ -172,20 +175,31 @@ class DailyLosers:
         openai = OpenAIAPI()
         filtered_tickers = []
 
+        content_max = 0
+
         for i, ticker in enumerate(tickers):
+            if content_max > 25000:
+                time.sleep(15)
+                content_max = 0
+                py_logger.info("Sleeping for 15 seconds to avoid rate limit.")
+
             try:
-                articles = self.alpaca.trading.news.get_news(symbol=ticker)
+                articles = self.alpaca.trading.news.get_news(
+                    symbol=ticker, limit=article_limit, content_length=4000
+                )
             except Exception as e:
                 py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
                 continue
 
-            if articles is None:
-                continue
-
-            if len(articles) > 0:
+            if len(articles) >= article_limit and len(articles) > 0:
+                if len(filtered_tickers) >= filter_ticker_limit:
+                    break
+                py_logger.info(f"Found {len(articles)} articles for {ticker}")
                 bullish = 0
                 bearish = 0
-                for art in articles[:6]:
+                for art in articles[:article_limit]:
+                    content_max += len(art["content"])
+                    time.sleep(5)
                     sentiment = openai.get_sentiment_analysis(
                         title=art["title"],
                         symbol=art["symbol"],
@@ -198,16 +212,21 @@ class DailyLosers:
 
                 if bullish > bearish:
                     filtered_tickers.append(ticker)
+                    py_logger.info(f"{ticker} has bullish news sentiment.")
 
-        if len(filtered_tickers) == 0:
-            print("No tickers with news found")
-            return []
+        # if len(filtered_tickers) == 0:
+        #     print("No tickers with news found")
+        #     return []
 
         print(f"OpenAI Found {len(filtered_tickers)}tickers with BULLISH news sentiment.")
 
         self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
 
-        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
+        return (
+            self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
+            if filtered_tickers
+            else []
+        )
 
     ########################################################
     # Define the get_daily_losers method

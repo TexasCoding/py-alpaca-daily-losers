@@ -422,13 +422,13 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cmdstanpy"
-version = "1.2.3"
+version = "1.2.4"
 description = "Python interface to CmdStan"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "cmdstanpy-1.2.3-py3-none-any.whl", hash = "sha256:9cd927496462dff5f9f8075fac13f22b370834de93d18387f204bd93418fc08a"},
-    {file = "cmdstanpy-1.2.3.tar.gz", hash = "sha256:4491265f11d2bc8efa3ba0628e36d673ab995f30b168c06ee8e9c297a7ce3569"},
+    {file = "cmdstanpy-1.2.4-py3-none-any.whl", hash = "sha256:ad60f8ca17050216ab7140e13aa493628d88af8a689f17253a5ad294a9826c78"},
+    {file = "cmdstanpy-1.2.4.tar.gz", hash = "sha256:ad586be0b9f4c654ecbdc4af4541f4d282f99175956cda88cc5eb873719356cc"},
 ]
 
 [package.dependencies]
@@ -814,13 +814,13 @@ files = [
 
 [[package]]
 name = "holidays"
-version = "0.50"
+version = "0.51"
 description = "Generate and work with holidays in Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "holidays-0.50-py3-none-any.whl", hash = "sha256:7f17ce3a29bc77194ab90eaa320a8cc71823f6beb8a034c0d892cc20114278c3"},
-    {file = "holidays-0.50.tar.gz", hash = "sha256:f9b7de6c98bafefc5d19087dbb721926b31670133704f414032c22b309648e8a"},
+    {file = "holidays-0.51-py3-none-any.whl", hash = "sha256:c894d61d62a16a05a92ab21534ceb00489f57df07ea34ad3ca96064673314c45"},
+    {file = "holidays-0.51.tar.gz", hash = "sha256:499d6952987ac99f94bd6a788222a7f5aa6bf8f1dc7bf834cc54ae42d9bbd713"},
 ]
 
 [package.dependencies]
@@ -2384,13 +2384,13 @@ tests = ["pytest"]
 
 [[package]]
 name = "py-alpaca-api"
-version = "2.1.7"
+version = "2.1.9"
 description = "Python package, for communicating with Alpaca Markets REST API."
 optional = false
 python-versions = "<4.0,>=3.12"
 files = [
-    {file = "py_alpaca_api-2.1.7-py3-none-any.whl", hash = "sha256:f742b2f58c67283d77bc1120c76e3facf779a4e70d08cf94bb71bf1421d3340c"},
-    {file = "py_alpaca_api-2.1.7.tar.gz", hash = "sha256:e2275968e153af39b64242b024e1b5ec7e02733bbf7ad38c081a75c7a25d33ff"},
+    {file = "py_alpaca_api-2.1.9-py3-none-any.whl", hash = "sha256:57c7301e5697a277220a7fd1decfb95a531683a19a03e076727f376948ca6c1c"},
+    {file = "py_alpaca_api-2.1.9.tar.gz", hash = "sha256:00b876c8692c3224b49eccfe64bf1c22418ea989ad5fcacabb76713215758f24"},
 ]
 
 [package.dependencies]
@@ -3492,13 +3492,13 @@ six = "*"
 
 [[package]]
 name = "urllib3"
-version = "2.2.1"
+version = "2.2.2"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "urllib3-2.2.1-py3-none-any.whl", hash = "sha256:450b20ec296a467077128bff42b73080516e71b56ff59a60a02bef2232c4fa9d"},
-    {file = "urllib3-2.2.1.tar.gz", hash = "sha256:d0570876c61ab9e520d776c38acbbb5b05a776d3f9ff98a5c8fd5162a444cf19"},
+    {file = "urllib3-2.2.2-py3-none-any.whl", hash = "sha256:a448b2f64d686155468037e1ace9f2d2199776e17f0a46610480d311f73e3472"},
+    {file = "urllib3-2.2.2.tar.gz", hash = "sha256:dd505485549a7a552833da5e6063639d0d177c04f23bc3864e41e5dc5f612168"},
 ]
 
 [package.extras]
