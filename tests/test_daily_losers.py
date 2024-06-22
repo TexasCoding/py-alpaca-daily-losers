@@ -14,7 +14,7 @@ class TestDailyLosers:
         daily_losers = DailyLosers()
         daily_losers.check_for_buy_opportunities()
 
-        daily_losers.open_positions.assert_called_once_with(tickers=["AAPL"], ticker_limit=6)
+        daily_losers.open_positions.assert_called_once_with(tickers=["AAPL"], ticker_limit=4)
 
     def test_check_for_buy_opportunities_without_losers(self, mocker):
         mocker.patch.object(DailyLosers, "get_daily_losers", return_value=[])
