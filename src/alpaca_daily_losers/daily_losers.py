@@ -142,8 +142,8 @@ class DailyLosers:
 
                 articles = self.alpaca.trading.news.get_news(symbol=ticker, limit=article_limit, content_length=4000)
                 if len(articles) >= article_limit:
-                    bullish_count = sum(1 for article in articles if re.sub("[^a-zA-Z]", "", self.openai.get_sentiment_analysis(
-                        title=article["title"], symbol=article["symbol"], article=article["content"])) == "BULLISH")
+                    bullish_count = sum(1 for article in articles if self.openai.get_sentiment_analysis(
+                        title=article["title"], symbol=article["symbol"], article=article["content"]) == "BULLISH")
 
                     if bullish_count > len(articles) // 2:
                         filtered_tickers.append(ticker)

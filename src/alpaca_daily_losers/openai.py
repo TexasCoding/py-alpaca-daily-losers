@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 from tenacity import retry, stop_after_attempt, wait_random_exponential
@@ -65,7 +66,8 @@ class OpenAIAPI:
             ]
 
             response = self.chat(message_history)
-            sentiment = response.choices[0].message.content.strip().upper()
+            
+            sentiment = re.sub("[^a-zA-Z]", "", response.choices[0].message.content.strip().upper())
 
             if sentiment not in {"BEARISH", "BULLISH", "NEUTRAL"}:
                 raise ValueError(f"Unexpected sentiment response: {sentiment}")
