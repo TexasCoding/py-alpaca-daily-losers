@@ -1,8 +1,15 @@
 import logging
-from typing import List, Any
+from typing import List
+
 import pandas as pd
 from py_alpaca_api import Stock, Trading
-from alpaca_daily_losers.global_functions import get_ticker_data, send_message, send_position_messages
+
+from alpaca_daily_losers.global_functions import (
+    get_ticker_data,
+    send_message,
+    send_position_messages,
+)
+
 
 class ClosePositions:
     def __init__(self, trading_client: Trading, stock_client: Stock, py_logger: logging.Logger):
@@ -22,8 +29,8 @@ class ClosePositions:
         cash position, and then uses the `get_stocks_to_sell()` method to
         determine which positions should be sold. It then calls
         the `_sell_positions()` method to execute the sell orders and
-        sends messages to notify of the sold positions. If no positions meet the 
-        sell criteria, a message is sent indicating that no sell opportunities were found.        
+        sends messages to notify of the sold positions. If no positions meet the
+        sell criteria, a message is sent indicating that no sell opportunities were found.
         Raises:
             Exception: If an error occurs while selling the positions.
         """
@@ -42,7 +49,9 @@ class ClosePositions:
         except Exception as e:
             self.py_logger.error(f"Error selling positions from criteria. Error: {e}")
 
-    def _sell_positions(self, stocks_to_sell: List[str], current_positions: pd.DataFrame) -> List[dict]:
+    def _sell_positions(
+        self, stocks_to_sell: List[str], current_positions: pd.DataFrame
+    ) -> List[dict]:
         """
         Sell positions for the given stocks.
 
@@ -101,12 +110,19 @@ class ClosePositions:
         stocks_to_sell = sell_filtered_df["symbol"].tolist()
 
         # Add stocks based on take profit and stop loss criteria
-        stocks_to_sell = self._add_stocks_from_criteria(non_cash_positions, stocks_to_sell, stop_loss_percentage, take_profit_percentage)
+        stocks_to_sell = self._add_stocks_from_criteria(
+            non_cash_positions, stocks_to_sell, stop_loss_percentage, take_profit_percentage
+        )
 
         return stocks_to_sell
 
-    def _add_stocks_from_criteria(self, non_cash_positions: pd.DataFrame, stocks_to_sell: List[str], 
-                                  stop_loss_percentage: float, take_profit_percentage: float) -> List[str]:
+    def _add_stocks_from_criteria(
+        self,
+        non_cash_positions: pd.DataFrame,
+        stocks_to_sell: List[str],
+        stop_loss_percentage: float,
+        take_profit_percentage: float,
+    ) -> List[str]:
         """
         Adds stocks to the sell list based on stop loss and take profit criteria.
 

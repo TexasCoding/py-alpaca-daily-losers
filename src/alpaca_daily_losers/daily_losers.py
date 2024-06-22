@@ -1,11 +1,11 @@
 import logging
 import os
-import re
 from typing import List
 
 import pandas as pd
 from dotenv import load_dotenv
 from py_alpaca_api import PyAlpacaAPI
+
 from alpaca_daily_losers.close_positions import ClosePositions
 from alpaca_daily_losers.global_functions import (
     get_ticker_data,
@@ -16,9 +16,8 @@ from alpaca_daily_losers.liquidate import Liquidate
 from alpaca_daily_losers.openai import OpenAIAPI
 from alpaca_daily_losers.statistics import Statistics
 
-
 # Constants
-WATCHLIST_NAME = 'DailyLosers'
+WATCHLIST_NAME = "DailyLosers"
 DEFAULT_BUY_LIMIT = 4
 DEFAULT_ARTICLE_LIMIT = 4
 DEFAULT_STOP_LOSS_PERCENTAGE = 10.0
@@ -44,13 +43,20 @@ class DailyLosers:
     def __init__(self):
         self.alpaca = PyAlpacaAPI(api_key=API_KEY, api_secret=API_SECRET, api_paper=API_PAPER)
         self.liquidate = Liquidate(trading_client=self.alpaca.trading, py_logger=logger)
-        self.close = ClosePositions(trading_client=self.alpaca.trading, stock_client=self.alpaca.stock, py_logger=logger)
+        self.close = ClosePositions(
+            trading_client=self.alpaca.trading, stock_client=self.alpaca.stock, py_logger=logger
+        )
         self.statistics = Statistics(account=self.alpaca.trading.account, py_logger=logger)
         self.openai = OpenAIAPI()
 
-    def run(self, buy_limit=DEFAULT_BUY_LIMIT, article_limit=DEFAULT_ARTICLE_LIMIT,
-            stop_loss_percentage=DEFAULT_STOP_LOSS_PERCENTAGE, take_profit_percentage=DEFAULT_TAKE_PROFIT_PERCENTAGE,
-            future_days=DEFAULT_FUTURE_DAYS):
+    def run(
+        self,
+        buy_limit=DEFAULT_BUY_LIMIT,
+        article_limit=DEFAULT_ARTICLE_LIMIT,
+        stop_loss_percentage=DEFAULT_STOP_LOSS_PERCENTAGE,
+        take_profit_percentage=DEFAULT_TAKE_PROFIT_PERCENTAGE,
+        future_days=DEFAULT_FUTURE_DAYS,
+    ):
         """
         Executes the main logic of the program, orchestrating the various components.
         """
@@ -70,7 +76,12 @@ class DailyLosers:
         except Exception as e:
             logger.error(f"Error entering new positions: {e}")
 
-    def check_for_buy_opportunities(self, buy_limit=DEFAULT_BUY_LIMIT, article_limit=DEFAULT_ARTICLE_LIMIT, future_days=DEFAULT_FUTURE_DAYS):
+    def check_for_buy_opportunities(
+        self,
+        buy_limit=DEFAULT_BUY_LIMIT,
+        article_limit=DEFAULT_ARTICLE_LIMIT,
+        future_days=DEFAULT_FUTURE_DAYS,
+    ):
         """
         Checks for buy opportunities based on daily losers and news sentiment.
         """
@@ -80,7 +91,7 @@ class DailyLosers:
                 print("No buy opportunities found.")
                 logger.info("No buy opportunities found.")
                 return
-            
+
             tickers = self.filter_tickers_with_news(losers, article_limit, buy_limit)
             if tickers:
                 logger.info(f"Found {len(tickers)} buy opportunities.")
@@ -130,7 +141,12 @@ class DailyLosers:
             except Exception as e:
                 logger.error(f"Could not create or update the watchlist {name}: {e}")
 
-    def filter_tickers_with_news(self, tickers: List[str], article_limit=DEFAULT_ARTICLE_LIMIT, filter_ticker_limit=DEFAULT_BUY_LIMIT):
+    def filter_tickers_with_news(
+        self,
+        tickers: List[str],
+        article_limit=DEFAULT_ARTICLE_LIMIT,
+        filter_ticker_limit=DEFAULT_BUY_LIMIT,
+    ):
         """
         Filters tickers based on news sentiment.
         """
@@ -140,10 +156,20 @@ class DailyLosers:
                 if len(filtered_tickers) >= filter_ticker_limit:
                     break
 
-                articles = self.alpaca.trading.news.get_news(symbol=ticker, limit=article_limit, content_length=4000)
+                articles = self.alpaca.trading.news.get_news(
+                    symbol=ticker, limit=article_limit, content_length=4000
+                )
                 if len(articles) >= article_limit:
-                    bullish_count = sum(1 for article in articles if self.openai.get_sentiment_analysis(
-                        title=article["title"], symbol=article["symbol"], article=article["content"]) == "BULLISH")
+                    bullish_count = sum(
+                        1
+                        for article in articles
+                        if self.openai.get_sentiment_analysis(
+                            title=article["title"],
+                            symbol=article["symbol"],
+                            article=article["content"],
+                        )
+                        == "BULLISH"
+                    )
 
                     if bullish_count > len(articles) // 2:
                         filtered_tickers.append(ticker)
@@ -160,7 +186,9 @@ class DailyLosers:
         """
         try:
             losers = self.alpaca.stock.predictor.get_losers_to_gainers(future_periods=future_days)
-            losers_data = get_ticker_data(tickers=losers, stock_client=self.alpaca.stock, py_logger=logger)
+            losers_data = get_ticker_data(
+                tickers=losers, stock_client=self.alpaca.stock, py_logger=logger
+            )
             return self.buy_criteria(losers_data)
         except Exception as e:
             logger.error(f"Error fetching daily losers: {e}")

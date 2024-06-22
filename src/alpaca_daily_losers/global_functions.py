@@ -1,11 +1,13 @@
 import os
 from datetime import datetime, timedelta
+
 import pandas as pd
 from dotenv import load_dotenv
+from py_alpaca_api import Stock
 from pytz import timezone
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
-from py_alpaca_api import Stock
+
 from alpaca_daily_losers.slack import Slack
 
 load_dotenv()
@@ -20,6 +22,7 @@ year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 # Environment Variables
 production = os.getenv("PRODUCTION")
 slack_username = os.getenv("SLACK_USERNAME")
+
 
 def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:
     """
@@ -62,6 +65,7 @@ def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:
 
     return df_tech
 
+
 def send_position_messages(positions: list, pos_type: str):
     """
     Sends position messages based on the type of position.
@@ -95,6 +99,7 @@ def send_position_messages(positions: list, pos_type: str):
             position_message += f"{qty} shares of {symbol}\n"
 
     return send_message(position_message)
+
 
 def send_message(message: str):
     """

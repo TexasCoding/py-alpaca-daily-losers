@@ -1,12 +1,14 @@
 import os
+
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
+
 class Slack:
     """
     A class to send messages to a Slack channel.
-    
+
     Attributes:
         slack_token (str): Token for authenticating with the Slack API.
         client (WebClient): Slack WebClient instance for making API calls.
@@ -17,7 +19,8 @@ class Slack:
         Initializes the Slack class with a Slack token.
 
         Args:
-            slack_token (str, optional): Token for Slack API. Loads from environment variable if not provided.
+            slack_token (str, optional): Token for Slack API. Loads from
+            environment variable if not provided.
         """
         load_dotenv()
         self.slack_token = slack_token or os.getenv("SLACK_ACCESS_TOKEN")
@@ -34,23 +37,19 @@ class Slack:
 
         Returns:
             dict: Response from the Slack API.
-        
+
         Raises:
             ValueError: If the Slack token is not set or if the message fails to send.
         """
         if not self.slack_token:
             print(f"Slack token is not provided. Message: {text}")
             return {"ok": False, "error": "Slack token is not provided"}
-        
+
         if not self.client:
             raise ValueError("Slack client is not initialized.")
-        
+
         try:
-            response = self.client.chat_postMessage(
-                channel=channel,
-                text=text,
-                username=username
-            )
+            response = self.client.chat_postMessage(channel=channel, text=text, username=username)
             return response
 
         except SlackApiError as e:

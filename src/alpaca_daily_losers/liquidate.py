@@ -1,7 +1,10 @@
 import logging
+
 import pandas as pd
 from py_alpaca_api.trading import Trading
+
 from alpaca_daily_losers.global_functions import send_message, send_position_messages
+
 
 class Liquidate:
     FIXED_FEE = 5.00
@@ -52,7 +55,7 @@ class Liquidate:
             None
         """
         current_positions = self.trade.positions.get_all()
-        
+
         if current_positions[current_positions["symbol"] != "Cash"].empty:
             self._send_liquidation_message("No positions available to liquidate for capital")
             return
@@ -65,10 +68,14 @@ class Liquidate:
             top_performers = self.get_top_performers(current_positions)
             top_performers_market_value = top_performers["market_value"].sum()
             cash_needed = self.calculate_cash_needed(total_holdings, cash_row)
-            sold_positions = self._sell_top_performers(top_performers, top_performers_market_value, cash_needed)
+            sold_positions = self._sell_top_performers(
+                top_performers, top_performers_market_value, cash_needed
+            )
             send_position_messages(sold_positions, "liquidate")
 
-    def _sell_top_performers(self, top_performers: pd.DataFrame, top_performers_market_value: float, cash_needed: float) -> list:
+    def _sell_top_performers(
+        self, top_performers: pd.DataFrame, top_performers_market_value: float, cash_needed: float
+    ) -> list:
         """
         Sells positions of top performers to liquidate the required cash.
 
@@ -88,7 +95,9 @@ class Liquidate:
 
             try:
                 self.trade.orders.market(symbol=row["symbol"], notional=amount_to_sell, side="sell")
-                sold_positions.append({"symbol": row["symbol"], "notional": round(amount_to_sell, 2)})
+                sold_positions.append(
+                    {"symbol": row["symbol"], "notional": round(amount_to_sell, 2)}
+                )
             except Exception as e:
                 self.py_logger.warning(f"Error liquidating position {row['symbol']}. Error: {e}")
                 self._send_liquidation_message(f"Error selling {row['symbol']}: {e}")
