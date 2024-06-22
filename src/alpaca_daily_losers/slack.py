@@ -1,54 +1,58 @@
 import os
-
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-load_dotenv()
-
-# Load environment variables
-production = os.getenv("PRODUCTION")
-slack_token = os.getenv("SLACK_ACCESS_TOKEN")
-
-
 class Slack:
     """
-    A class to send messages to a Slack channel
-    attributes: slack_workspace_token
+    A class to send messages to a Slack channel.
+    
+    Attributes:
+        slack_token (str): Token for authenticating with the Slack API.
+        client (WebClient): Slack WebClient instance for making API calls.
     """
 
-    def __init__(self):
-        self.slack_workspace_token = slack_token
-
-    ########################################################
-    # Define the send_message function
-    ########################################################
-    def send_message(self, channel, message, username):
+    def __init__(self, slack_token: str = None):
         """
-        Send a message to the Slack channel
-        :param channel:
-        :param message: Message to send
-        :param username: Username to send the message as
-        If the slack_workspace_token is not set, print the message instead of sending it to Slack
+        Initializes the Slack class with a Slack token.
+
+        Args:
+            slack_token (str, optional): Token for Slack API. Loads from environment variable if not provided.
         """
-        # Create a WebClient object
+        load_dotenv()
+        self.slack_token = slack_token or os.getenv("SLACK_ACCESS_TOKEN")
+        self.client = WebClient(token=self.slack_token) if self.slack_token else None
 
-        if not self.slack_workspace_token:
-            print(message)
-            return
+    def send_message(self, channel: str, text: str, username: str = None):
+        """
+        Sends a message to the specified Slack channel.
 
-        client = WebClient(token=self.slack_workspace_token)
+        Args:
+            channel (str): Slack channel ID or name.
+            text (str): Message text to send.
+            username (str, optional): Username to send the message as. Defaults to None.
 
+        Returns:
+            dict: Response from the Slack API.
+        
+        Raises:
+            ValueError: If the Slack token is not set or if the message fails to send.
+        """
+        if not self.slack_token:
+            print(f"Slack token is not provided. Message: {text}")
+            return {"ok": False, "error": "Slack token is not provided"}
+        
+        if not self.client:
+            raise ValueError("Slack client is not initialized.")
+        
         try:
-            response = client.chat_postMessage(
-                channel=channel, text=f"{message}", username=username
+            response = self.client.chat_postMessage(
+                channel=channel,
+                text=text,
+                username=username
             )
-            assert response["message"]["text"] == f"{message}"
+            return response
+
         except SlackApiError as e:
-            # You will get a SlackApiError if "ok" is False
-            assert e.response["ok"] is False
-            assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
-            print(f"Got an error: {e.response['error']}")
-            # Also receive a corresponding status_code
-            assert isinstance(e.response.status_code, int)
-            print(f"Received a response status_code: {e.response.status_code}")
+            print(f"Error sending message: {e.response['error']}")
+            return {"ok": False, "error": e.response["error"]}

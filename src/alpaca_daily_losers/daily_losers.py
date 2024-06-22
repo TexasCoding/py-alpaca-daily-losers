@@ -1,11 +1,11 @@
 import logging
 import os
 import re
+from typing import List
 
 import pandas as pd
 from dotenv import load_dotenv
 from py_alpaca_api import PyAlpacaAPI
-
 from alpaca_daily_losers.close_positions import ClosePositions
 from alpaca_daily_losers.global_functions import (
     get_ticker_data,
@@ -16,343 +16,171 @@ from alpaca_daily_losers.liquidate import Liquidate
 from alpaca_daily_losers.openai import OpenAIAPI
 from alpaca_daily_losers.statistics import Statistics
 
-# get a custom logger & set the logging level
-py_logger = logging.getLogger(__name__)
+
+# Constants
+WATCHLIST_NAME = 'DailyLosers'
+DEFAULT_BUY_LIMIT = 4
+DEFAULT_ARTICLE_LIMIT = 4
+DEFAULT_STOP_LOSS_PERCENTAGE = 10.0
+DEFAULT_TAKE_PROFIT_PERCENTAGE = 10.0
+DEFAULT_FUTURE_DAYS = 4
+
+# Load environment configuration
+load_dotenv()
+PRODUCTION = os.getenv("PRODUCTION") == "True"
+API_KEY = os.getenv("ALPACA_API_KEY")
+API_SECRET = os.getenv("ALPACA_SECRET_KEY")
+API_PAPER = os.getenv("ALPACA_PAPER") == "True"
+
+# Configure logging
 logging.basicConfig(
-    level=logging.WARNING if os.getenv("PRODUCTION") == "True" else logging.INFO,
+    level=logging.WARNING if PRODUCTION else logging.INFO,
     format="%(name)s %(asctime)s %(levelname)s %(message)s",
 )
-
-load_dotenv()
-
-api_key = str(os.getenv("API_KEY"))
-api_secret = str(os.getenv("API_SECRET"))
-api_paper = True if os.getenv("API_PAPER") == "True" else False
+logger = logging.getLogger(__name__)
 
 
 class DailyLosers:
     def __init__(self):
-        self.alpaca = PyAlpacaAPI(api_key=api_key, api_secret=api_secret, api_paper=api_paper)
-        self.production = True if os.getenv("PRODUCTION") == "True" else False
-        self.liquidate = Liquidate(trading_client=self.alpaca.trading, py_logger=py_logger)
-        self.close = ClosePositions(
-            trading_client=self.alpaca.trading,
-            stock_client=self.alpaca.stock,
-            py_logger=py_logger,
-        )
-        self.statistics = Statistics(account=self.alpaca.trading.account, py_logger=py_logger)
+        self.alpaca = PyAlpacaAPI(api_key=API_KEY, api_secret=API_SECRET, api_paper=API_PAPER)
+        self.liquidate = Liquidate(trading_client=self.alpaca.trading, py_logger=logger)
+        self.close = ClosePositions(trading_client=self.alpaca.trading, stock_client=self.alpaca.stock, py_logger=logger)
+        self.statistics = Statistics(account=self.alpaca.trading.account, py_logger=logger)
+        self.openai = OpenAIAPI()
 
-    def run(
-        self,
-        buy_limit: int = 4,
-        article_limit: int = 4,
-        stop_loss_percentage: float = 10.0,
-        take_profit_percentage: float = 10.0,
-        future_days: int = 4,
-    ) -> None:
+    def run(self, buy_limit=DEFAULT_BUY_LIMIT, article_limit=DEFAULT_ARTICLE_LIMIT,
+            stop_loss_percentage=DEFAULT_STOP_LOSS_PERCENTAGE, take_profit_percentage=DEFAULT_TAKE_PROFIT_PERCENTAGE,
+            future_days=DEFAULT_FUTURE_DAYS):
         """
-        Executes the main logic of the program.
-
-        This method performs the following steps:
-        1. Attempts to sell positions based on certain criteria.
-        2. Attempts to liquidate positions for capital.
-        3. Checks for new buy opportunities.
-
-        If any of the steps encounter an error, it logs the error and
-        continues to the next step.
+        Executes the main logic of the program, orchestrating the various components.
         """
+
         try:
-            self.close.sell_positions_from_criteria(
-                stop_loss_percentage=stop_loss_percentage,
-                take_profit_percentage=take_profit_percentage,
-            )
+            self.close.sell_positions_from_criteria(stop_loss_percentage, take_profit_percentage)
         except Exception as e:
-            py_logger.error(f"Error selling positions from criteria. Error {e}")
-            pass
+            logger.error(f"Error selling positions from criteria: {e}")
+
         try:
             self.liquidate.liquidate_positions()
         except Exception as e:
-            py_logger.error(f"Error liquidating positions for capital. Error: {e}")
-            pass
+            logger.error(f"Error liquidating positions for capital: {e}")
+
         try:
-            self.check_for_buy_opportunities(
-                buy_limit=buy_limit,
-                article_limit=article_limit,
-                future_days=future_days,
-            )
+            self.check_for_buy_opportunities(buy_limit, article_limit, future_days)
         except Exception as e:
-            py_logger.error(f"Error entering new positions. Error {e}")
+            logger.error(f"Error entering new positions: {e}")
 
-    ########################################################
-    # Define the check_for_buy_opportunities method
-    ########################################################
-    def check_for_buy_opportunities(
-        self, buy_limit: int = 6, article_limit: int = 4, future_days: int = 3
-    ) -> None:
+    def check_for_buy_opportunities(self, buy_limit=DEFAULT_BUY_LIMIT, article_limit=DEFAULT_ARTICLE_LIMIT, future_days=DEFAULT_FUTURE_DAYS):
         """
-        Checks for buy opportunities based on daily losers and opens positions if any are found.
-
-        Returns:
-            None
+        Checks for buy opportunities based on daily losers and news sentiment.
         """
-        losers = self.get_daily_losers(future_days=future_days)
-        tickers = self.filter_tickers_with_news(
-            tickers=losers, filter_ticker_limit=buy_limit, article_limit=article_limit
-        )
-
-        if len(tickers) > 0:
-            print(f"Found {len(tickers)} buy opportunities.")
-            self.open_positions(tickers=tickers, ticker_limit=buy_limit)
-        else:
-            print("No buy opportunities found")
-
-    ########################################################
-    # Define the open_positions method
-    ########################################################
-    def open_positions(self, tickers: list, ticker_limit: int = 6) -> None:
-        """
-        Opens buying orders based on buy opportunities and openai sentiment.
-        Limits the number of stocks to buy to 8 by default.
-
-        Args:
-            tickers (list): A list of ticker symbols to buy.
-            ticker_limit (int, optional): The maximum number of tickers to buy. Defaults to 8.
-
-        Returns:
-            None
-        """
-
-        available_cash = self.alpaca.trading.account.get().cash
-
-        if len(tickers) == 0:
-            send_message("No tickers to buy.")
-            return
-        else:
-            notional = (available_cash / len(tickers[:ticker_limit])) - 1
-
-        bought_positions = []
-
-        for ticker in tickers[:ticker_limit]:
-            try:
-                self.alpaca.trading.orders.market(symbol=ticker, notional=notional)
-            except Exception as e:
-                py_logger.warning(f"Error entering new position for {ticker}. Error: {e}")
-                send_message(message=f"Error buying {ticker}: {e}")
-                continue
+        try:
+            losers = self.get_daily_losers(future_days)
+            if not losers:
+                print("No buy opportunities found.")
+                logger.info("No buy opportunities found.")
+                return
+            
+            tickers = self.filter_tickers_with_news(losers, article_limit, buy_limit)
+            if tickers:
+                logger.info(f"Found {len(tickers)} buy opportunities.")
+                self.open_positions(tickers=tickers, ticker_limit=buy_limit)
             else:
-                bought_positions.append({"symbol": ticker, "notional": round(notional, 2)})
+                print("No buy opportunities found.")
+                logger.info("No buy opportunities found.")
+        except Exception as e:
+            logger.error(f"Error checking for buy opportunities: {e}")
 
-        send_position_messages(positions=bought_positions, pos_type="buy")
-
-    ########################################################
-    # Define the update_or_create_watchlist method
-    ########################################################
-    def update_or_create_watchlist(self, name, symbols) -> None:
+    def open_positions(self, tickers: List[str], ticker_limit=DEFAULT_BUY_LIMIT):
         """
-        Updates an existing watchlist with the given name and symbols,
-        or creates a new watchlist if it doesn't exist.
+        Opens buying orders based on buy opportunities and OpenAI sentiment.
+        """
+        try:
+            available_cash = self.alpaca.trading.account.get().cash
+            if not tickers:
+                send_message("No tickers to buy.")
+                return
 
-        Args:
-            name (str): The name of the watchlist.
-            symbols (List[str]): A list of symbols to be added to the watchlist.
+            notional = (available_cash / len(tickers[:ticker_limit])) - 1
+            bought_positions = []
 
-        Returns:
-            None
+            for ticker in tickers[:ticker_limit]:
+                try:
+                    self.alpaca.trading.orders.market(symbol=ticker, notional=notional)
+                    bought_positions.append({"symbol": ticker, "notional": round(notional, 2)})
+                except Exception as e:
+                    logger.warning(f"Error entering new position for {ticker}: {e}")
+                    send_message(f"Error buying {ticker}: {e}")
+                    continue
 
-        Raises:
-            Exception: If the watchlist cannot be updated or created.
+            send_position_messages(positions=bought_positions, pos_type="buy")
+        except Exception as e:
+            logger.error(f"Error opening positions: {e}")
 
+    def update_or_create_watchlist(self, name: str, symbols: List[str]):
+        """
+        Updates an existing watchlist or creates a new one.
         """
         try:
             self.alpaca.trading.watchlists.update(watchlist_name=name, symbols=symbols)
         except Exception as e:
-            py_logger.info(
-                f"Watchlist could not be updated: {e}:\nTrying to create new watchlist with \
-                    name: {name}"
-            )
+            logger.info(f"Watchlist could not be updated, attempting to create new watchlist: {e}")
             try:
                 self.alpaca.trading.watchlists.create(name=name, symbols=symbols)
             except Exception as e:
-                py_logger.error(f"Could not create or update the watchlist {name}.\nError: {e}")
+                logger.error(f"Could not create or update the watchlist {name}: {e}")
 
-    ########################################################
-    # Define the filter_tickers_with_news method
-    ########################################################
-    def filter_tickers_with_news(
-        self, tickers: list, article_limit: int = 4, filter_ticker_limit: int = 6
-    ) -> list:
+    def filter_tickers_with_news(self, tickers: List[str], article_limit=DEFAULT_ARTICLE_LIMIT, filter_ticker_limit=DEFAULT_BUY_LIMIT):
         """
-        Filters a list of tickers based on the number of news articles available and
-        the sentiment analysis of those articles.
-
-        Args:
-            tickers (list): A list of tickers to filter.
-            article_limit (int): The maximum number of articles to consider per ticker.
-            filter_ticker_limit (int): The maximum number of tickers to include in the
-            filtered list.
-
-        Returns:
-            list: A list of tickers that pass the filtering criteria.
+        Filters tickers based on news sentiment.
         """
-
-        openai = OpenAIAPI()
-        filtered_tickers = []
-
-        for i, ticker in enumerate(tickers):
-            if len(filtered_tickers) >= filter_ticker_limit:
-                break
-            try:
-                articles = self.alpaca.trading.news.get_news(
-                    symbol=ticker, limit=article_limit, content_length=4000
-                )
-            except Exception as e:
-                py_logger.warning(f"Error getting articles for {ticker}. Error {e}")
-                continue
-
-            if len(articles) >= article_limit and len(articles) > 0:
+        try:
+            filtered_tickers = []
+            for ticker in tickers:
                 if len(filtered_tickers) >= filter_ticker_limit:
                     break
-                py_logger.info(f"Found {len(articles)} articles for {ticker}")
-                bullish = 0
-                bearish = 0
-                for art in articles[:article_limit]:
-                    sentiment = openai.get_sentiment_analysis(
-                        title=art["title"],
-                        symbol=art["symbol"],
-                        article=art["content"],
-                    )
 
-                    regex = re.compile("[^a-zA-Z]")
-                    clean_sentiment = regex.sub("", sentiment)
-                    if clean_sentiment == "BULLISH":
-                        bullish += 1
-                    else:
-                        bearish += 1
+                articles = self.alpaca.trading.news.get_news(symbol=ticker, limit=article_limit, content_length=4000)
+                if len(articles) >= article_limit:
+                    bullish_count = sum(1 for article in articles if self.openai.get_sentiment_analysis(
+                        title=article["title"], symbol=article["symbol"], article=article["content"]) == "BULLISH")
 
-                if bullish > bearish:
-                    filtered_tickers.append(ticker)
+                    if bullish_count > len(articles) // 2:
+                        filtered_tickers.append(ticker)
 
-        self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_tickers)
-
-        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
-
-    ########################################################
-    # Define the get_daily_losers method
-    ########################################################
-    def get_daily_losers(self, future_days: int = 3) -> list:
-        """
-        Get a list of daily losers based on the buy criteria.
-
-        Parameters:
-        - future_days (int): The number of future days to consider for the losers.
-
-        Returns:
-        - list: A list of tickers that meet the buy criteria and have a
-        bearish or neutral sentiment.
-
-        Raises:
-        - None
-
-        Example usage:
-
-        losers = get_daily_losers(future_days=3)
-        print(losers)
-
-
-        Note:
-        - The buy criteria is defined in the `buy_criteria` method.
-        - The sentiment for each ticker is checked, and only tickers with a bearish or
-        neutral sentiment are included in the final list.
-        - If no daily losers are found, an empty list is returned.
-        - The 'DailyLosers' watchlist is updated or created with the tickers that meet the criteria.
-        - The assets in the 'DailyLosers' watchlist are returned.
-        """
-
-        losers = self.alpaca.stock.predictor.get_losers_to_gainers(future_periods=future_days)
-        losers = get_ticker_data(
-            tickers=losers, stock_client=self.alpaca.stock, py_logger=py_logger
-        )
-        losers = self.buy_criteria(losers)
-
-        if len(losers) == 0:
-            send_message("No daily losers found.")
+            self.update_or_create_watchlist(name=WATCHLIST_NAME, symbols=filtered_tickers)
+            return self.alpaca.trading.watchlists.get_assets(watchlist_name=WATCHLIST_NAME)
+        except Exception as e:
+            logger.warning(f"Error filtering tickers with news: {e}")
             return []
 
-        for i, ticker in enumerate(losers):
-            try:
-                sentiment = self.alpaca.trading.recommendations.get_sentiment(ticker)
-            except Exception as e:
-                py_logger.info(f"Error getting sentiment from Yahoo. Error: {e}")
-                sentiment = "NEUTRAL"
-
-            if sentiment == "NEUTRAL" or sentiment == "BEARISH":
-                losers.remove(ticker)
-
-        if len(losers) == 0:
-            send_message("No daily losers found.")
+    def get_daily_losers(self, future_days=DEFAULT_FUTURE_DAYS):
+        """
+        Get daily losers based on the criteria and predictions.
+        """
+        try:
+            losers = self.alpaca.stock.predictor.get_losers_to_gainers(future_periods=future_days)
+            losers_data = get_ticker_data(tickers=losers, stock_client=self.alpaca.stock, py_logger=logger)
+            return self.buy_criteria(losers_data)
+        except Exception as e:
+            logger.error(f"Error fetching daily losers: {e}")
             return []
 
-        print(f"Found {len(losers)} daily losers with BULLISH recommendations.")
-
-        self.update_or_create_watchlist(name="DailyLosers", symbols=losers)
-
-        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
-
-    ########################################################
-    # Define the buy_criteria method
-    ########################################################
-    def buy_criteria(self, data: pd.DataFrame) -> list:
+    def buy_criteria(self, data: pd.DataFrame):
         """
-        Applies buy criteria to the given DataFrame and returns a
-        list of symbols that meet the criteria.
-
-        Parameters:
-        - data (pd.DataFrame): The DataFrame containing the data
-        to apply the buy criteria on.
-
-        Returns:
-        - list: A list of symbols that meet the buy criteria.
-
-        Raises:
-        - None
-
-        Example usage:
-        ```
-        data = pd.DataFrame(...)
-        symbols = buy_criteria(data)
-        print(symbols)
-        ```
-
-        Note:
-        - The buy criteria is based on two conditions:
-            1. RSI (Relative Strength Index) values in the columns
-            'rsi14', 'rsi30', 'rsi50', 'rsi200' should be less than or equal to 30.
-            2. BBLO (Bollinger Bands Lower Indicator) values in the
-            columns 'bblo14', 'bblo30', 'bblo50', 'bblo200' should be equal to 1.
-        - If no symbols meet the buy criteria, an empty list is returned.
-        - The watchlist named 'DailyLosers' is updated or created with
-        the symbols that meet the buy criteria.
-        - The assets in the 'DailyLosers' watchlist are returned.
-
+        Apply buy criteria to the given DataFrame and return symbols that meet the criteria.
         """
-
         RSI_COLUMNS = ["rsi14", "rsi30", "rsi50", "rsi200"]
         BBLO_COLUMNS = ["bblo14", "bblo30", "bblo50", "bblo200"]
 
-        criterion1 = data[RSI_COLUMNS] <= 30
-        criterion2 = data[BBLO_COLUMNS] == 1
-        buy_criteria = criterion1.any(axis=1) | criterion2.any(axis=1)
+        criteria = data[RSI_COLUMNS].le(30).any(axis=1) | data[BBLO_COLUMNS].eq(1).any(axis=1)
+        filtered_data = data[criteria]
+        filtered_symbols = list(filtered_data["symbol"])
 
-        buy_filtered_data = data[buy_criteria]
-
-        filtered_data = list(buy_filtered_data["symbol"])
-
-        if len(filtered_data) == 0:
-            print("No tickers meet the buy criteria")
+        if not filtered_symbols:
+            logger.info("No tickers meet the buy criteria")
             return []
 
-        print(f"Found {len(filtered_data)} tickers that meet the buy criteria.")
-
-        self.update_or_create_watchlist(name="DailyLosers", symbols=filtered_data)
-
-        return self.alpaca.trading.watchlists.get_assets(watchlist_name="DailyLosers")
+        logger.info(f"Found {len(filtered_symbols)} tickers that meet the buy criteria.")
+        self.update_or_create_watchlist(name=WATCHLIST_NAME, symbols=filtered_symbols)
+        return filtered_symbols
