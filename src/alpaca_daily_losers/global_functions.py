@@ -109,4 +109,4 @@ def send_message(message: str):
     if production == "False":
         print(f"Message: {message}")
     else:
-        slack.send_message(channel="#app-development", message=message, username=slack_username)
+        slack.send_message(channel="#app-development", text=message, username=slack_username)
