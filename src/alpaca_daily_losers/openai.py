@@ -1,16 +1,13 @@
 import os
 import re
 
-from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 from tenacity import retry, stop_after_attempt, wait_random_exponential
-
-load_dotenv()
 
 
 class OpenAIAPI:
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.api_key = os.environ.get("OPENAI_API_KEY")
         self.model = "gpt-4o"
 
     @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))

@@ -2,15 +2,12 @@ import os
 from datetime import datetime, timedelta
 
 import pandas as pd
-from dotenv import load_dotenv
 from py_alpaca_api import Stock
 from pytz import timezone
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands
 
 from alpaca_daily_losers.slack import Slack
-
-load_dotenv()
 
 # Constants
 tz = timezone("US/Eastern")
@@ -20,8 +17,8 @@ previous_day = (ctime - timedelta(days=1)).strftime("%Y-%m-%d")
 year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 
 # Environment Variables
-production = os.getenv("PRODUCTION")
-slack_username = os.getenv("SLACK_USERNAME")
+production = os.environ.get("PRODUCTION")
+slack_username = os.environ.get("SLACK_USERNAME")
 
 
 def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:

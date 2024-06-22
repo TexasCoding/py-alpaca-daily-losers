@@ -1,6 +1,5 @@
 import os
 
-from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -22,8 +21,7 @@ class Slack:
             slack_token (str, optional): Token for Slack API. Loads from
             environment variable if not provided.
         """
-        load_dotenv()
-        self.slack_token = slack_token or os.getenv("SLACK_ACCESS_TOKEN")
+        self.slack_token = slack_token or os.environ.get("SLACK_ACCESS_TOKEN")
         self.client = WebClient(token=self.slack_token) if self.slack_token else None
 
     def send_message(self, channel: str, text: str, username: str = None):

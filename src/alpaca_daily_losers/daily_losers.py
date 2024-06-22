@@ -3,7 +3,6 @@ import os
 from typing import List
 
 import pandas as pd
-from dotenv import load_dotenv
 from py_alpaca_api import PyAlpacaAPI
 
 from alpaca_daily_losers.close_positions import ClosePositions
@@ -25,11 +24,10 @@ DEFAULT_TAKE_PROFIT_PERCENTAGE = 10.0
 DEFAULT_FUTURE_DAYS = 4
 
 # Load environment configuration
-load_dotenv()
-PRODUCTION = os.getenv("PRODUCTION") == "True"
-API_KEY = os.getenv("ALPACA_API_KEY")
-API_SECRET = os.getenv("ALPACA_SECRET_KEY")
-API_PAPER = os.getenv("ALPACA_PAPER") == "True"
+PRODUCTION = os.environ.get("PRODUCTION") == "True"
+API_KEY = os.environ.get("ALPACA_API_KEY")
+API_SECRET = os.environ.get("ALPACA_SECRET_KEY")
+API_PAPER = os.environ.get("ALPACA_PAPER") == "True"
 
 # Configure logging
 logging.basicConfig(
