@@ -90,10 +90,13 @@ def send_position_messages(positions: list, pos_type: str):
     else:
         position_message = f"Successfully {position_name} the following positions:\n"
         for position in positions:
-            qty_key = "notional" if position_name == "liquidated" else "qty"
+            qty_key = "notional" if position_name in ["liquidated", "bought"] else "qty"
             qty = position[qty_key]
             symbol = position["symbol"]
-            position_message += f"{qty} shares of {symbol}\n"
+            if position_name in ["liquidated", "bought"]:
+                position_message += f"${qty} of {symbol} {position_name}\n"
+            else:
+                position_message += f"{position_name} {qty} shares of {symbol}\n"
 
     return send_message(position_message)
 
@@ -106,7 +109,12 @@ def send_message(message: str):
         message (str): Message to send.
     """
     slack = Slack()
-    if production == "False":
-        print(f"Message: {message}")
-    else:
-        slack.send_message(channel="#app-development", text=message, username=slack_username)
+    try:
+        if production == "False":
+            print(f"Message: {message}")
+        else:
+            slack.send_message(channel="#app-development", text=message, username=slack_username)
+    except Exception as e:
+        print(f"Error sending message: {e}")
+        return False
+    return True
