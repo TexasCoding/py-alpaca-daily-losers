@@ -39,8 +39,13 @@ class Liquidate:
             pd.DataFrame: DataFrame containing the top performers.
         """
         non_cash_positions = current_positions[current_positions["symbol"] != "Cash"]
-        non_cash_positions = non_cash_positions.sort_values(by="profit_pct", ascending=False)
-        return non_cash_positions.iloc[: len(non_cash_positions) // 2]
+        non_cash_positions = non_cash_positions[non_cash_positions["profit_pct"] > 0.5].sort_values(
+            by="profit_pct", ascending=False
+        )
+
+        return non_cash_positions.iloc[
+            : len(non_cash_positions) // 2 if len(non_cash_positions) > 1 else 1
+        ]
 
     def liquidate_positions(self) -> None:
         """
@@ -66,6 +71,9 @@ class Liquidate:
         # Check if cash is less than 10% of total holdings
         if cash_row["market_value"].iloc[0] / total_holdings < 0.1:
             top_performers = self.get_top_performers(current_positions)
+            if top_performers.empty:
+                self._send_liquidation_message("No top performers found to liquidate for capital")
+                return
             top_performers_market_value = top_performers["market_value"].sum()
             cash_needed = self.calculate_cash_needed(total_holdings, cash_row)
             sold_positions = self._sell_top_performers(

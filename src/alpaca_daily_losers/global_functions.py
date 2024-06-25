@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timedelta
 
@@ -20,15 +21,60 @@ year_ago = (ctime - timedelta(days=365)).strftime("%Y-%m-%d")
 production = os.environ.get("PRODUCTION")
 slack_username = os.environ.get("SLACK_USERNAME")
 
+# Initialize logger
+logger = logging.getLogger(__name__)
 
-def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:
+
+def calculate_indicators(history: pd.DataFrame, window: int) -> pd.DataFrame:
+    """
+    Calculate RSI and Bollinger Bands for a given history and window.
+
+    Args:
+        history (pd.DataFrame): Historical stock data.
+        window (int): Window period for RSI and Bollinger Bands.
+
+    Returns:
+        df (pd.DataFrame): DataFrame with RSI and Bollinger Band indicators.
+    """
+    rsi = RSIIndicator(close=history["close"], window=window).rsi()
+    bb = BollingerBands(close=history["close"], window=window, window_dev=2)
+    history[f"rsi{window}"] = rsi
+    history[f"bbhi{window}"] = bb.bollinger_hband_indicator()
+    history[f"bblo{window}"] = bb.bollinger_lband_indicator()
+    return history
+
+
+def get_historical_data(
+    stock_client: Stock, ticker: str, start_date: str, end_date: str
+) -> pd.DataFrame:
+    """
+    Retrieve historical data for a given ticker.
+
+    Args:
+        stock_client (Stock): Stock client for retrieving historical data.
+        ticker (str): Stock ticker symbol.
+        start_date (str): Start date for historical data.
+        end_date (str): End date for historical data.
+
+    Returns:
+        history (pd.DataFrame): Historical stock data.
+    """
+    try:
+        history = stock_client.history.get_stock_data(symbol=ticker, start=start_date, end=end_date)
+        return history
+    except Exception as e:
+        logger.warning(f"Error getting historical data for {ticker}. Error: {e}")
+        return pd.DataFrame()
+
+
+def get_ticker_data(tickers, stock_client: Stock, py_logger=None) -> pd.DataFrame:
     """
     Retrieve historical data for given tickers and compute technical indicators.
 
     Args:
         tickers (list): List of stock ticker symbols.
         stock_client (Stock): Stock client for retrieving historical data.
-        py_logger (logging.Logger): Logger for logging warnings and errors.
+        py_logger (logging.Logger, optional): Logger for logging warnings and errors.
 
     Returns:
         df_tech (pd.DataFrame): DataFrame with the latest technical indicators for each ticker.
@@ -36,24 +82,21 @@ def get_ticker_data(tickers, stock_client: Stock, py_logger) -> pd.DataFrame:
     df_tech = []
 
     for ticker in tickers:
-        try:
-            history = stock_client.history.get_stock_data(
-                symbol=ticker, start=year_ago, end=previous_day
-            )
-        except Exception as e:
-            py_logger.warning(f"Error getting historical data for {ticker}. Error: {e}")
-            continue
 
         try:
-            for n in [14, 30, 50, 200]:
-                history[f"rsi{n}"] = RSIIndicator(close=history["close"], window=n).rsi()
-                bb = BollingerBands(close=history["close"], window=n, window_dev=2)
-                history[f"bbhi{n}"] = bb.bollinger_hband_indicator()
-                history[f"bblo{n}"] = bb.bollinger_lband_indicator()
+            history = get_historical_data(stock_client, ticker, year_ago, previous_day)
+            if history.empty:
+                continue
+            for window in [14, 30, 50, 200]:
+                history = calculate_indicators(history, window)
+
             df_tech_temp = history.tail(1)
             df_tech.append(df_tech_temp)
         except KeyError as ke:
-            py_logger.warning(f"KeyError processing indicators for {ticker}. Error: {ke}")
+            logger.warning(f"KeyError processing indicators for {ticker}. Error: {ke}")
+        except Exception as e:
+            logger.error(f"Unhandled exception processing {ticker}. Error: {e}")
+            continue
 
     if df_tech:
         df_tech = pd.concat([x for x in df_tech if not x.empty], axis=0)
