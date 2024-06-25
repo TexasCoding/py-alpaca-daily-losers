@@ -31,7 +31,7 @@ def test_liquidates_positions_when_cash_less_than_10_percent_with_sold_positions
         {
             "symbol": ["AAPL", "GOOGL", "Cash"],
             "market_value": [5000, 3000, 500],
-            "profit_pct": [0.2, 0.1, 0],
+            "profit_pct": [2.0, 1.1, 0],
         }
     )
     mock_trade.positions.get_all.return_value = current_positions

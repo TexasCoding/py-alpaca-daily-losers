@@ -70,6 +70,22 @@ class DailyLosers:
             logger.error(f"Error liquidating positions for capital: {e}")
 
         try:
+            current_positions = self.alpaca.trading.positions.get_all()
+
+            cash_row = current_positions[current_positions["symbol"] == "Cash"]
+            total_holdings = current_positions["market_value"].sum()
+
+            # Check if cash is less than 10% of total holdings
+            if cash_row["market_value"].iloc[0] / total_holdings < 0.1:
+                print(
+                    "Cash is less than 10% of total holdings. Can't open any new positions today."
+                )
+                logger.info(
+                    "Cash is less than 10% of total holdings. \
+                    Can't open any new positions today."
+                )
+                return
+
             self.check_for_buy_opportunities(buy_limit, article_limit, future_days)
         except Exception as e:
             logger.error(f"Error entering new positions: {e}")
