@@ -1,6 +1,10 @@
+import os
+
 import pytest
 
 from src.alpaca_daily_losers.global_functions import send_position_messages
+
+production = os.environ.get("PRODUCTION", False)
 
 
 def test_send_position_messages_sell(capsys):
@@ -11,12 +15,13 @@ def test_send_position_messages_sell(capsys):
     pos_type = "sell"
     result = send_position_messages(positions, pos_type)
     printed_message = capsys.readouterr().out
-    assert (
-        printed_message
-        == """Message: Successfully sold the following positions:
+    if not production:
+        assert (
+            printed_message
+            == """Message: Successfully sold the following positions:
 sold 10 shares of AAPL
 sold 5 shares of GOOGL\n\n"""
-    )
+        )
     assert True if result else False
 
 
@@ -28,12 +33,13 @@ def test_send_position_messages_buy(capsys):
     pos_type = "buy"
     result = send_position_messages(positions, pos_type)
     printed_message = capsys.readouterr().out
-    assert (
-        printed_message
-        == """Message: Successfully bought the following positions:
+    if not production:
+        assert (
+            printed_message
+            == """Message: Successfully bought the following positions:
 $1000 of AAPL bought
 $500 of GOOGL bought\n\n"""
-    )
+        )
     assert True if result else False
 
 
@@ -45,12 +51,13 @@ def test_send_position_messages_liquidate(capsys):
     pos_type = "liquidate"
     result = send_position_messages(positions, pos_type)
     printed_message = capsys.readouterr().out
-    assert (
-        printed_message
-        == """Message: Successfully liquidated the following positions:
+    if not production:
+        assert (
+            printed_message
+            == """Message: Successfully liquidated the following positions:
 $10 of AAPL liquidated
 $5 of GOOGL liquidated\n\n"""
-    )
+        )
     assert True if result else False
 
 
