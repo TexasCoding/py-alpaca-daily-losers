@@ -11,6 +11,7 @@ env:
   SLACK_ACCESS_TOKEN: ${{ secrets.SLACK_ACCESS_TOKEN }}
   SLACK_USERNAME: ${{ secrets.SLACK_USERNAME }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  PRODUCTION: ${{ secrets.PRODUCTION }}
 
 jobs:
   build:

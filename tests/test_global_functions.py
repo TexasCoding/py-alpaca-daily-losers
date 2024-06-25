@@ -14,8 +14,8 @@ def test_send_position_messages_sell(capsys):
     ]
     pos_type = "sell"
     result = send_position_messages(positions, pos_type)
-    printed_message = capsys.readouterr().out
     if not production:
+        printed_message = capsys.readouterr().out
         assert (
             printed_message
             == """Message: Successfully sold the following positions:
@@ -32,8 +32,8 @@ def test_send_position_messages_buy(capsys):
     ]
     pos_type = "buy"
     result = send_position_messages(positions, pos_type)
-    printed_message = capsys.readouterr().out
     if not production:
+        printed_message = capsys.readouterr().out
         assert (
             printed_message
             == """Message: Successfully bought the following positions:
@@ -50,8 +50,8 @@ def test_send_position_messages_liquidate(capsys):
     ]
     pos_type = "liquidate"
     result = send_position_messages(positions, pos_type)
-    printed_message = capsys.readouterr().out
     if not production:
+        printed_message = capsys.readouterr().out
         assert (
             printed_message
             == """Message: Successfully liquidated the following positions:
