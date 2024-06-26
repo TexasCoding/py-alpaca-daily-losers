@@ -5,9 +5,10 @@ from py_alpaca_api.trading import Trading
 
 from alpaca_daily_losers.global_functions import send_message, send_position_messages
 
+LIQUIDATE_PERCENTAGE = 1.0
+
 
 class Liquidate:
-    FIXED_FEE = 5.00
 
     def __init__(self, trading_client: Trading, py_logger: logging.Logger):
         self.trade = trading_client
@@ -25,7 +26,7 @@ class Liquidate:
         Returns:
             float: The amount of cash needed for liquidation, including a fixed fee of $5.00.
         """
-        return (total_holdings * 0.1 - cash_row["market_value"].iloc[0]) + Liquidate.FIXED_FEE
+        return total_holdings * 0.1 - cash_row["market_value"].iloc[0]
 
     @staticmethod
     def get_top_performers(current_positions: pd.DataFrame) -> pd.DataFrame:
@@ -39,13 +40,11 @@ class Liquidate:
             pd.DataFrame: DataFrame containing the top performers.
         """
         non_cash_positions = current_positions[current_positions["symbol"] != "Cash"]
-        non_cash_positions = non_cash_positions[non_cash_positions["profit_pct"] > 0.5].sort_values(
-            by="profit_pct", ascending=False
-        )
+        non_cash_positions = non_cash_positions[
+            non_cash_positions["profit_pct"] > LIQUIDATE_PERCENTAGE
+        ].sort_values(by="profit_pct", ascending=False)
 
-        return non_cash_positions.iloc[
-            : len(non_cash_positions) // 2 if len(non_cash_positions) > 1 else 1
-        ]
+        return non_cash_positions.iloc[: len(non_cash_positions)]
 
     def liquidate_positions(self) -> None:
         """
