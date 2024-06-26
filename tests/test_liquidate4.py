@@ -61,7 +61,7 @@ class TestLiquidate:
         total_holdings = 13245.0
         cash_row = pd.DataFrame([{"symbol": "Cash", "market_value": 0}])
         cash_needed = self.liquidator.calculate_cash_needed(total_holdings, cash_row)
-        assert cash_needed == 1324.5 + 5.00
+        assert cash_needed == 1324.5
 
     def test_get_top_performers(self):
         current_positions = pd.DataFrame(

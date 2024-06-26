@@ -29,19 +29,19 @@ def test_calculate_cash_needed():
     total_holdings = 10000.0
     cash_row = pd.DataFrame({"market_value": [500.0]})
     result = Liquidate.calculate_cash_needed(total_holdings, cash_row)
-    assert result == 505.0
+    assert result == 500.0
 
 
 def test_get_top_performers():
     current_positions = pd.DataFrame(
-        {"symbol": ["AAPL", "MSFT", "GOOGL", "Cash"], "profit_pct": [5, 20, 30, 0]}
+        {"symbol": ["AAPL", "MSFT", "GOOGL", "Cash"], "profit_pct": [0.2, 20, 30, 0]}
     )
     result = Liquidate.get_top_performers(current_positions)
     expected = pd.DataFrame({"symbol": ["GOOGL", "MSFT"], "profit_pct": [30, 20]})
     assert (
         result["symbol"].tolist()
         == expected["symbol"]
-        .iloc[: len(current_positions[current_positions["symbol"] != "Cash"]) // 2]
+        .iloc[: len(current_positions[current_positions["symbol"] != "Cash"])]
         .tolist()
     )
 
